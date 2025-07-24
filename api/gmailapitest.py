@@ -226,9 +226,24 @@ def read_message_d(service, message):
     return msg_dict
 
 
+def mark_as_read(service, msglist):
+    # messages_to_mark = search_messages(service, query)
+    print(f"Matched emails: {len(msglist)}")
+    return (
+        service.users()
+        .messages()
+        .batchModify(
+            userId="me",
+            body={"ids": [msg["id"] for msg in msglist], "removeLabelIds": ["UNREAD"]},
+        )
+        .execute()
+    )
+
+
 def complete(query):
     message_list = []
     service = gmail_authenticate()
+    mark_read_list = []
 
     # get emails that match the query you specify
     results = search_messages(service, query)
@@ -245,6 +260,9 @@ def complete(query):
             if len(matches) != 0:
                 msg_digest["contacts"] = matches
                 message_list.append(msg_digest)
+                mark_read_list.append(msg)
+                print("marked as read")
+
         except:
             matches = []
 
@@ -252,6 +270,8 @@ def complete(query):
 
     # https://thepythoncode.com/article/use-gmail-api-in-python
     print("messagelist\n", message_list)
+    if len(mark_read_list) != 0:
+        mark_as_read(service, mark_read_list)
     return message_list
 
 
