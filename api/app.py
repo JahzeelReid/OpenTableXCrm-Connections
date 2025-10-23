@@ -26,6 +26,7 @@ HEADERS = {
     "Content-Type": "application/json",
 }
 
+BASE_URL = "https://rest.gohighlevel.com/v1"
 
 # interval example
 # @scheduler.task("interval", id="do_job_1", seconds=30, misfire_grace_time=900)
@@ -84,3 +85,17 @@ def tome():
     if response.status_code == 200:
         return response.json()
     return None
+
+
+def send_mms(contact_id, message, image_url):
+    url = f"{BASE_URL}/messages/"
+    headers = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
+    payload = {
+        "contactId": contact_id,
+        "type": "SMS",
+        "body": message,
+        "attachments": [{"url": image_url, "type": "image/jpeg"}],
+    }
+
+    response = requests.post(url, json=payload, headers=headers)
+    return response.json()

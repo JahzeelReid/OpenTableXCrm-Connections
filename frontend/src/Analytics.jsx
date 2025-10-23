@@ -34,3 +34,19 @@ export default function Analytics() {
     </Card>
   );
 }
+//trying to give the welcome, the review,
+//for the review make a copy of review site
+//send a review request if they take 3 or less stars save and do nothing
+//if 5 send to google review page
+//higher people for dashboard an onboarding
+//Have ai create the text messages regarding promotion
+//recycle content by creating templates that allow the parameters to be mixed an matched to the users
+//I'm working on:
+// create and flesh out the client portal to include
+// templates for users to select from and reccomendations from ai
+// work on sending those chosen templates to go highe level to
+// research api to see if we can send text to go high level that can be
+// sent to cantacts via text message
+// can either be a dish or a reservation promotion
+// track clicks on link via utm parameters
+//dashboard snapshot of analytics
