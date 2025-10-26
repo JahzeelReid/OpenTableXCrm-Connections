@@ -7,23 +7,24 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "api": "cd backend && venv\\Scripts\\python.exe -m flask --app api run --no-debugger"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@mantine/core": "^8.3.5",
     "@mantine/hooks": "^8.3.5",
-    "@mantine/rte": "^5.10.5",
     "@mantine/tiptap": "^8.3.5",
     "@mui/icons-material": "^7.3.4",
     "@mui/material": "^7.3.4",
     "@tiptap/pm": "^3.7.2",
     "@tiptap/react": "^3.7.2",
     "@tiptap/starter-kit": "^3.7.2",
+    "axios": "^1.12.2",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "react-quill": "^2.0.0",
+    "react-router-dom": "^7.9.4",
     "recharts": "^3.2.1"
   },
   "devDependencies": {
