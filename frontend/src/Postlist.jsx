@@ -1,9 +1,11 @@
 import React, { use, useEffect, useState } from "react";
 import { Card, CardContent, Typography } from "@mui/material";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
 export default function PostList() {
   const [posts, setPosts] = useState([]);
+  const navigate = useNavigate();
 
   //   useEffect(() => {
   //     fetch("/api/posts")
@@ -21,7 +23,11 @@ export default function PostList() {
         setPosts(response.data.posts);
       })
       .catch((error) => {
-        if (error.response) {
+        if (error.response && error.response.status === 401) {
+          console.warn("Session expired or invalid token.");
+          localStorage.removeItem("token"); // optional: clear stored token
+          navigate("/");
+        } else {
           console.log(error.response);
           console.log(error.response.status);
           console.log(error.response.headers);

@@ -57,7 +57,15 @@ export default function Login() {
         backgroundColor: "#f9fafb",
       }}
     >
-      <Card sx={{ width: 350, p: 2, borderRadius: 3, boxShadow: 3 }}>
+      <Card
+        sx={{
+          width: "100%",
+          maxWidth: 600,
+          p: 2,
+          borderRadius: 3,
+          boxShadow: 3,
+        }}
+      >
         <CardContent>
           <Typography variant="h5" align="center" gutterBottom>
             Welcome Back

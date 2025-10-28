@@ -228,7 +228,7 @@ def get_contacts_ghl(headers):
 def create_post(current_user):
     # retrieve data from frontend
     data = request.get_json()
-    user_id = data.get("user_id")
+    # user_id = data.get("user_id")
     title = data.get("title")
     content = data.get("content")
     image = data.get("image")
@@ -247,7 +247,7 @@ def create_post(current_user):
 
     # and send mms with image
     new_post = Post(
-        user_id=user_id,
+        user_id=user.id,
         title=title,
         content=content,
         image_url=None,
