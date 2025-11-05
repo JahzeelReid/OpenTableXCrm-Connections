@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Container, Fab, Typography, Box } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
-import PostEditor from "./PostEditor";
+import PostEditor from "./Posteditor";
 import PostList from "./PostList";
 import Analytics from "./Analytics";
 import { useNavigate } from "react-router-dom";

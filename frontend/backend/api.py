@@ -10,7 +10,19 @@ import jwt
 import uuid
 from functools import wraps
 from datetime import datetime, timezone, timedelta
-import requests
+import requests, os
+from openai import OpenAI
+from templates import templates
+
+# initialize the client with API key
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+# # make a request
+# response = client.responses.create(
+#     model="gpt-5", input="Write a one-sentence bedtime story about a unicorn."
+# )
+
+# print(response.output_text)
 
 
 class Base(DeclarativeBase):
@@ -71,6 +83,13 @@ def get_header(company):
 
 @app.route("/api/time")
 def get_current_time():
+    response = client.responses.create(
+        model="gpt-4o",
+        instructions="Choose a template that best matches the theme and purpose of the information provided by the restuarunt owner. The chosen template will be sent to resturaunt goers via text. Return only the number of the template.",
+        input="How do I check if a Python object is an instance of a class?",
+    )
+
+    print(response.output_text)
     return {"time": time.time()}
 
 
@@ -231,7 +250,30 @@ def create_post(current_user):
     # user_id = data.get("user_id")
     title = data.get("title")
     content = data.get("content")
+    print("data received at backend:", content)
     image = data.get("image")
+    t = templates
+
+    # First, figure out which bucket of templates to use
+    if content["selectedPromotion"] == "Reservation":
+        t = templates["reservation_templates"]
+
+    # second, send only that bucket to ai to choose from
+    prompt = f"""
+        You are an assistant that helps restaurant owners send text messages to customers.
+        Choose the single most appropriate template based on the restaurant's provided info.
+        Return **only** the number of the template (1–{len(t)}), with no explanation or text.
+
+        Templates:
+        {chr(10).join([f"{i+1}. {t}" for i, t in enumerate(t)] )}
+
+        Info: {content}
+        """
+
+    response = client.responses.create(model="gpt-4o-mini", input=prompt)
+    # third, Parse response and send that template to contacts
+    print("ai response ", response.output_text)
+    # send info to ai
 
     # pull all contacts from crm
     # user = User.query.filter_by(id=user_id).first()
@@ -243,7 +285,7 @@ def create_post(current_user):
     for contact in contacts:
         contact_id = contact["id"]
         # send mms to each contact
-        send_mms_ghl(contact_id, content, image, company)
+        # send_mms_ghl(contact_id, content, image, company)
 
     # and send mms with image
     new_post = Post(
@@ -253,7 +295,7 @@ def create_post(current_user):
         image_url=None,
         company_id=company.id,
     )
-    db.session.add(new_post)
+    # db.session.add(new_post)
     db.session.commit()
     return jsonify({"message": "Post created and messages sent!"}), 200
 

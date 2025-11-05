@@ -50,3 +50,12 @@ export default function Analytics() {
 // can either be a dish or a reservation promotion
 // track clicks on link via utm parameters
 //dashboard snapshot of analytics
+
+// can we use utms to track clicks on links sent via text message
+//
+// research go high level api to see if we can send text messages via their platform
+// research ai text generation for promotional messages
+// track number of clicks, number of reservations, revenue,
+//
+// reservation vs promotion vs menu item advertisement
+// 3

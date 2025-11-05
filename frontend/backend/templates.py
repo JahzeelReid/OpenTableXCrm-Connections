@@ -1,0 +1,70 @@
+templates = {
+    "reservation_templates": [
+        f"{contact_first_name}, we have a table open for you tonight. Secure your spot before seating fills. {booking_link}",
+        "Your table is available this evening, {contact.first_name}. Enjoy dinner without the wait. Reserve now: {{booking_link}}",
+        "{contact.first_name}, weekend seats fill fast. Lock in your reservation early and make it a night to remember. {{booking_link}}",
+        "We have priority seating open for you, {{contact.first_name}}. Plan your evening now: {{booking_link}}",
+        "{{contact.first_name}}, a premium table just opened for tonight. Confirm your reservation here: {{booking_link}}",
+        "Your experience is waiting, {{contact.first_name}}. Reserve your table before we hit capacity: {{booking_link}}",
+        "Planning ahead? Secure your weekend seating now, {{contact.first_name}}. Early bookings get the best tables. {{booking_link}}",
+        "{{contact.first_name}}, avoid last-minute waits. Reserve your table now and arrive on your time: {{booking_link}}",
+        "Your preferred seating window is available tonight, {{contact.first_name}}. Confirm here: {{booking_link}}",
+        "{{contact.first_name}}, treat yourself to a night out. Book your table while availability lasts: {{booking_link}}",
+    ],
+    "brunch_templates": [
+        "{{contact.first_name}}, Saturday brunch seating is now open. The kind people try to reserve early. Secure yours here {{booking_link}}",
+        "Sunday brunch fills fast, {{contact.first_name}}. This is the one people come back for. Hold your table now {{booking_link}}",
+        "{{contact.first_name}}, the weekend brunch everyone talks about has seats available. Reserve while openings last {{booking_link}}",
+        "Saturday reservations are moving, {{contact.first_name}}. Lock in your table before the best seating is gone {{booking_link}}",
+        "Your Sunday brunch experience is waiting, {{contact.first_name}}. Book yours before we close availability {{booking_link}}",
+        "This weekend seating is limited, {{contact.first_name}}. Secure your brunch table now while premium spots remain {{booking_link}}",
+        "{{contact.first_name}}, Saturday openings are rare this close to the weekend. If you want in, reserve here {{booking_link}}",
+        "Your Sunday table is available, {{contact.first_name}}. Brunch is where guests linger for a reason. Secure it {{booking_link}}",
+        "Weekend brunch demand is high, {{contact.first_name}}. You have access to early seating. Confirm it here {{booking_link}}",
+        "{{contact.first_name}}, if you want a table for this weekend, this is the moment to claim it. Reserve here {{booking_link}}",
+    ],
+    "dinner_templates": [
+        # 1. Elevated Night Out
+        "{{contact.first_name}}, tonight deserves more than ordinary. Your dinner table is available now. Reserve it here {{booking_link}}",
+        # 2. Escape / Unwind
+        "{{contact.first_name}}, slip out of the noise tonight. Your table is open if you are. Secure it here {{booking_link}}",
+        # 3. Intimate / Romantic
+        "A quiet table is waiting for you, {{contact.first_name}}. The kind meant for slow conversation and good connection. Reserve it {{booking_link}}",
+        # 4. Social Dining
+        "{{contact.first_name}}, gather your people and let the evening unfold here. Seating is open while availability lasts {{booking_link}}",
+        # 5. Prestige Culinary
+        "This is the dinner guests talk about after they leave. Your table is open, {{contact.first_name}}. Claim it here {{booking_link}}",
+        # 6. Signature Experience
+        "{{contact.first_name}}, the evening is yours to shape. We held a dinner window open for you. Reserve it now {{booking_link}}",
+        # 7. Weekend-Ready (but not date-specific)
+        "When the night calls for something memorable, {{contact.first_name}}, the right table matters. Yours is available here {{booking_link}}",
+        # 8. Subtle VIP Invitation
+        "{{contact.first_name}}, select seating is still open for tonight. If you want in, secure it before it’s gone {{booking_link}}",
+        # 9. Escape + Prestige Blend
+        "A reservation that feels like an exhale, {{contact.first_name}}. Step into the evening at your pace. Reserve here {{booking_link}}",
+        # 10. Food-Forward / Chef Energy
+        "For guests who come for the craft, {{contact.first_name}} — your seat has been set aside. Confirm it now {{booking_link}}",
+    ],
+    "happy_hour_templates": [
+        # 1
+        "{{contact.first_name}}, the best seats for Happy Hour are open within the 5–7 window Mon–Thurs. Reserve your spot here {{booking_link}}",
+        # 2
+        "A premium Happy Hour without the crowd. Your table is open within the 5–7 window, {{contact.first_name}}. Claim it now {{booking_link}}",
+        # 3
+        "{{contact.first_name}}, if you enjoy a quieter luxury before the evening rush, your seat is available within the 5–7 window. Reserve here {{booking_link}}",
+        # 4
+        "Happy Hour is where the evening begins. Your table is open Mon–Thurs within the 5–7 window. Secure it here {{booking_link}}",
+        # 5
+        "{{contact.first_name}}, this is the window before everyone else arrives. You have access between 5–7. Confirm your spot {{booking_link}}",
+        # 6
+        "For guests who prefer first access, your Happy Hour table is open within the 5–7 window, {{contact.first_name}}. Reserve here {{booking_link}}",
+        # 7
+        "The right table changes the whole evening. Secure yours for Happy Hour within the 5–7 window, {{contact.first_name}} {{booking_link}}",
+        # 8
+        "{{contact.first_name}}, before the night fills, there is a quieter hour meant for you. Access is open 5–7 Mon–Thurs {{booking_link}}",
+        # 9
+        "Happy Hour done right feels intentional, not rushed. Your access is available within the 5–7 window. Reserve here {{booking_link}}",
+        # 10
+        "{{contact.first_name}}, if you want the best tables before the crowd, the 5–7 window is yours. Secure it before it closes {{booking_link}}",
+    ],
+}
