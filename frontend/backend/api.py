@@ -3,19 +3,29 @@ from flask import Flask, request, jsonify, make_response
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy import JSON, Integer, String
-from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy.orm.attributes import flag_modified
 from werkzeug.security import generate_password_hash, check_password_hash
 import jwt
 import uuid
 from functools import wraps
-from datetime import datetime, timezone, timedelta
 import requests, os
 from openai import OpenAI
 from templates import templates
+import boto3
+import json
+from extensions import db
+from datetime import datetime, timezone, timedelta
+import base64
+
 
 # initialize the client with API key
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+s3 = boto3.client(
+    "s3",
+    aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+    aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+    region_name=os.getenv("AWS_REGION"),
+)
 
 # # make a request
 # response = client.responses.create(
@@ -29,7 +39,7 @@ class Base(DeclarativeBase):
     pass
 
 
-db = SQLAlchemy(model_class=Base)
+# db = SQLAlchemy(model_class=Base)
 
 
 app = Flask(__name__)
@@ -38,31 +48,9 @@ app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///project.db"
 app.config["SECRET_KEY"] = "your_super_secret_key_here"
 # initialize the app with the extension
 db.init_app(app)
+from model import Company, User, Post, ScheduledPost
+
 BASE_URL = "https://rest.gohighlevel.com/v1"
-
-
-class Company(db.Model):
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(unique=True)
-    bearer_token: Mapped[str]
-
-
-class User(db.Model):
-    id: Mapped[int] = mapped_column(primary_key=True)
-    public_id = db.Column(db.String(50), unique=True)
-    username: Mapped[str] = mapped_column(unique=True)
-    password: Mapped[str]
-    email: Mapped[str]
-    company_id: Mapped[int] = mapped_column(db.ForeignKey("company.id"))
-
-
-class Post(db.Model):
-    id: Mapped[int] = mapped_column(primary_key=True)
-    company_id: Mapped[int] = mapped_column(db.ForeignKey("company.id"))
-    title: Mapped[str]
-    content: Mapped[str]
-    image_url: Mapped[str] = mapped_column(nullable=True)
-    user_id: Mapped[int] = mapped_column(db.ForeignKey("user.id"))
 
 
 with app.app_context():
@@ -204,6 +192,7 @@ def send_mms_ghl(contact_id, message, image_url, company):
             "message": message,
         }
     else:
+        print("\nIMAGE ADDED URL:", image_url)
         payload = {
             "contactId": contact_id,
             "type": "SMS",
@@ -239,24 +228,62 @@ def get_contacts_ghl(headers):
         page += 1
 
     print(f"✅ Total contacts pulled: {len(contacts)}")
-    return contacts
+    real_contacts = []
+    for contact in contacts:
+        url = f"https://services.leadconnectorhq.com/contacts/{contact['id']}"
+        response = requests.get(url, headers=headers, params=params)
+        print("contact details response:", response.json())
+        try:
+            contact["contact_first_name"] = response.json()["contact"]["firstName"]
+            real_contacts.append(contact)
+        except:
+            pass
+    print("contacts with names:", contacts)
+
+    return real_contacts
 
 
 @app.route("/api/new_post", methods=["POST"])
 @token_required
 def create_post(current_user):
     # retrieve data from frontend
-    data = request.get_json()
-    # user_id = data.get("user_id")
-    title = data.get("title")
-    content = data.get("content")
+    # data = request.get_json()
+    # # user_id = data.get("user_id")
+    # title = data.get("title")
+    # content = data.get("content")
+    title = request.form.get("title")
+    # content = request.form.get("content")
+    content_str = request.form.get("content")  # this is a string now
+    content = json.loads(content_str)
+    image_url = "https://storage.googleapis.com/msgsndr/SAMRMXK1dqFwzEIFsOND/media/6922202477eb5bfc2f61f6e4.jpg"
+
+    # File comes from request.files
+    image = request.files.get("image")
+    if image:
+        s3.upload_fileobj(
+            image,
+            "resturaunt-connect",
+            image.filename,
+            ExtraArgs={"ContentType": image.content_type},
+        )
+        image_url = (
+            f"https://resturaunt-connect.s3.us-east-2.amazonaws.com/{image.filename}"
+        )
+
     print("data received at backend:", content)
-    image = data.get("image")
+    # image = data.get("image")
     t = templates
 
     # First, figure out which bucket of templates to use
-    if content["selectedPromotion"] == "Reservation":
+    print("data received at backend:", content)
+    if content["selectedPromotion"] == "Reservations":
         t = templates["reservation_templates"]
+    elif content["selectedPromotion"] == "Brunch":
+        t = templates["brunch_templates"]
+    elif content["selectedPromotion"] == "Dinner":
+        t = templates["dinner_templates"]
+    elif content["selectedPromotion"] == "Happy Hour":
+        t = templates["happy_hour_templates"]
 
     # second, send only that bucket to ai to choose from
     prompt = f"""
@@ -275,6 +302,12 @@ def create_post(current_user):
     print("ai response ", response.output_text)
     # send info to ai
 
+    try:
+        template_index = int(response.output_text) - 1
+        selected_template = t[template_index]
+    except (ValueError, IndexError):
+        raise ValueError(f"Invalid AI response: {response.output_text}")
+
     # pull all contacts from crm
     # user = User.query.filter_by(id=user_id).first()
     user = current_user
@@ -285,17 +318,22 @@ def create_post(current_user):
     for contact in contacts:
         contact_id = contact["id"]
         # send mms to each contact
-        # send_mms_ghl(contact_id, content, image, company)
+        message = selected_template.replace(
+            "{{contact.first_name}}", contact["contact_first_name"]
+        )
+
+        print("final message to send:", message)
+        send_mms_ghl(contact_id, message, image_url, company)
 
     # and send mms with image
     new_post = Post(
         user_id=user.id,
         title=title,
-        content=content,
-        image_url=None,
+        content=selected_template,
+        image_url=image_url if image else None,
         company_id=company.id,
     )
-    # db.session.add(new_post)
+    db.session.add(new_post)
     db.session.commit()
     return jsonify({"message": "Post created and messages sent!"}), 200
 
@@ -317,3 +355,80 @@ def get_posts(current_user):
         }
         output.append(post_data)
     return jsonify({"posts": output}), 200
+
+
+@app.route("/api/set_post_schedule", methods=["POST"])
+@token_required
+def set_post_schedule(current_user):
+    data = request.get_json()
+    days = data.get("days")
+    user = current_user
+    company = Company.query.filter_by(id=user.company_id).first()
+    print("day received:", days)
+    for post in days:
+        if post["mode"] == "auto":
+            new = ScheduledPost(
+                company_id=company.id, mode=post["mode"], promotion=post["promotion"]
+            )
+            db.session.add(new)
+    db.session.commit()
+
+    return jsonify({"message": "Scheduled post created!"}), 200
+
+
+@app.route("/api/check_company_state", methods=["GET"])
+@token_required
+def check_company_state(current_user):
+    user = current_user
+    company = Company.query.filter_by(id=user.company_id).first()
+    company.state = 2  # set to active for testing
+    db.session.commit()
+    return jsonify({"state": company.state}), 200
+
+
+@app.route("/api/parse_menu", methods=["POST"])
+def parse_menu():
+    file = request.files.get("file")
+    if not file:
+        return jsonify({"error": "No file"}), 400
+
+    # Read file bytes
+    file_bytes = file.read()
+    encoded = base64.b64encode(file_bytes).decode("utf-8")
+
+    response = client.responses.create(
+        model="gpt-4o-mini",
+        input=[
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "input_image",
+                        "image_url": f"data:{file.mimetype};base64,{encoded}",
+                    },
+                    {
+                        "type": "input_text",
+                        "text": 'Extract a JSON list of menu items and prices. Return ONLY valid JSON like: {"items": [{"name": "", "price": ""}]}. '
+                        "Do NOT include explanations, text, no backticks, no markdown, or notes. ONLY the JSON. The output will be fed directly into a json.load()",
+                    },
+                ],
+            }
+        ],
+    )
+    print("ai response before", response.output_text)
+    menu = json.loads(response.output_text)
+
+    print("ai response after", menu)
+
+    return jsonify({"menu": menu})
+
+
+@app.route("/test-s3")
+def test_s3():
+    print(os.getenv("AWS_ACCESS_KEY_ID"))
+    print(os.getenv("AWS_SECRET_ACCESS_KEY"))
+    try:
+        result = s3.list_buckets()
+        return {"success": True, "buckets": result["Buckets"]}
+    except Exception as e:
+        return {"success": False, "error": str(e)}, 500

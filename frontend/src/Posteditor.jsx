@@ -68,16 +68,6 @@ export default function PostEditor({
     <Dialog open={open} onClose={onClose} fullWidth>
       <DialogTitle>Create New Post</DialogTitle>
       <DialogContent>
-        {/* <RichTextEditor editor={editor}>
-          <RichTextEditor.Toolbar sticky>
-            <RichTextEditor.ControlsGroup>
-              <RichTextEditor.Bold />
-              <RichTextEditor.Italic />
-              <RichTextEditor.Link />
-            </RichTextEditor.ControlsGroup>
-          </RichTextEditor.Toolbar>
-          <RichTextEditor.Content />
-        </RichTextEditor> */}
         <FormControl>
           <FormLabel id="Promotion-Select">
             What would you like to promote? (Choose one)
@@ -249,3 +239,12 @@ export default function PostEditor({
     </Dialog>
   );
 }
+
+// 12 messages a month
+// 3 messages a week
+// upload menu to dashboard
+// scrape menu items for promotion suggestions
+// take menu items and create posts automatically
+// have the ai choose the best menu item to promote
+// have the ai create custom messages for each promotion
+// 12 messages a month
