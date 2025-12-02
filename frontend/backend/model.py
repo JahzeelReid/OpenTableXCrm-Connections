@@ -19,6 +19,7 @@ class Company(db.Model):
     )
     # queued_posts: Mapped[list["Post"]] = relationship(
     # list of post ids queued
+    menu: Mapped[dict] = mapped_column(JSON, nullable=True)  # menu stored as JSON
 
 
 class ScheduledPost(db.Model):

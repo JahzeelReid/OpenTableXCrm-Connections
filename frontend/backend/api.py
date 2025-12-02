@@ -406,10 +406,16 @@ def parse_menu():
                         "type": "input_image",
                         "image_url": f"data:{file.mimetype};base64,{encoded}",
                     },
+                    # {
+                    #     "type": "input_text",
+                    #     "text": 'Extract a JSON list of menu items and prices. Return ONLY valid JSON like: {"items": [{"name": "", "price": ""}]}. '
+                    #     "Do NOT include explanations, text, no backticks, no markdown, or notes. ONLY the JSON. The output will be fed directly into a json.load()",
+                    # },
                     {
                         "type": "input_text",
-                        "text": 'Extract a JSON list of menu items and prices. Return ONLY valid JSON like: {"items": [{"name": "", "price": ""}]}. '
-                        "Do NOT include explanations, text, no backticks, no markdown, or notes. ONLY the JSON. The output will be fed directly into a json.load()",
+                        "text": "Extract all menu item names and prices from the text. Return ONLY valid JSON. No explanations, no markdown, no notes. The JSON must match this exact structure:"
+                        '{ "menu": { "items": [ { "name": "", "price": "" } ] } }'
+                        "Fill the array with all detected items. Return nothing outside the JSON. The output will be parsed directly with json.load(). Ensure the JSON is strictly valid with no trailing commas.",
                     },
                 ],
             }
@@ -420,7 +426,73 @@ def parse_menu():
 
     print("ai response after", menu)
 
-    return jsonify({"menu": menu})
+    return jsonify(menu)
+
+
+# after recieving the ai, users can tweak their menu and submit it
+# need to create an endpoint to recieve the finalized menu and store it
+# create a workflow that checks the time and sends promotions about the menu on set times
+# for manual, on submit they can choose to schedule, and that post will be scheduled and take the next spot in the queue
+
+
+@app.route("/api/schedule_posts", methods=["POST"])
+def schedule_posts():
+    # This endpoint would be called by a scheduler (like cron) to check for scheduled posts
+    # Get all companies that have posts in queue
+    companies = Company.query.all()
+
+    results = []
+
+    for company in companies:
+        # Grab oldest scheduled post for this company (the front of the queue)
+        next_post = (
+            ScheduledPost.query.filter_by(company_id=company.id)
+            .order_by(ScheduledPost.created_at.asc())
+            .first()
+        )
+
+        if not next_post:
+            results.append({"company_id": company.id, "status": "no posts in queue"})
+            continue
+
+        # ----- Your posting logic goes here -----
+        try:
+            # Example: Your post-sending function
+            send_post(company, next_post)
+
+            # Remove the processed post from the queue
+            db.session.delete(next_post)
+            db.session.commit()
+
+            results.append(
+                {
+                    "company_id": company.id,
+                    "posted": next_post.promotion,
+                    "status": "success",
+                }
+            )
+        except Exception as e:
+            db.session.rollback()
+            results.append(
+                {"company_id": company.id, "error": str(e), "status": "failed"}
+            )
+
+    return jsonify({"results": results}), 200
+
+
+@app.route("/api/submit_final_menu", methods=["POST"])
+@token_required
+def submit_final_menu(current_user):
+    data = request.get_json()
+    menu = data.get("menu")
+    user = current_user
+    company = Company.query.filter_by(id=user.company_id).first()
+
+    # Store the finalized menu in the company's record (you may want to create a new table for menus)
+    company.menu = json.dumps(menu)  # assuming you add a 'menu' column to Company model
+    db.session.commit()
+
+    return jsonify({"message": "Final menu submitted successfully!"}), 200
 
 
 @app.route("/test-s3")
