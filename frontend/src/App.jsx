@@ -6,7 +6,7 @@ import ClientPortal from "./dashboard";
 import Dashboard from "./dashboard";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Login from "./login";
-import DayScheduler from "./state-1";
+import DayScheduler from "./DayScheduler";
 import MenuParser from "./state-2";
 
 function App() {

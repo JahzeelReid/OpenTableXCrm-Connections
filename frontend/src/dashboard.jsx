@@ -51,7 +51,7 @@ export default function Dashboard() {
     })
       .then((response) => {
         console.log("Company State:", response.data);
-        if (response.data.state !== "2") {
+        if (response.data.state === 1) {
           navigate("/setup");
         }
       })

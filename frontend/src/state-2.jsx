@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { Box, Typography, Button } from "@mui/material";
 import axios from "axios";
@@ -104,6 +104,26 @@ export default function MenuUploader() {
   //   }
   const [loading, setLoading] = useState(false);
 
+  const getmenu = () => {
+    axios({
+      method: "GET",
+      url: `/api/get_menu`,
+    })
+      .then((response) => {
+        setMenuItems(response.data);
+      })
+      .catch((error) => {
+        if (error.response && error.response.status === 401) {
+          console.warn("Session expired or invalid token.");
+          localStorage.removeItem("token"); // optional: clear stored token
+          navigate("/");
+        }
+        console.log(error.response);
+        console.log(error.response.status);
+        console.log(error.response.headers);
+      });
+  };
+
   const handleSubmit = () => {
     axios({
       method: "POST",
@@ -172,23 +192,11 @@ export default function MenuUploader() {
         console.log(error.response.status);
         console.log(error.response.headers);
       });
-
-    // try {
-    //   const res = await axios.post(
-    //     "http://localhost:5000/parse_menu",
-    //     formData,
-    //     {
-    //       headers: { "Content-Type": "multipart/form-data" },
-    //     }
-    //   );
-    //   setMenuItems(res.data.menu);
-    // } catch (err) {
-    //   console.error(err);
-    //   alert("Failed to parse menu. Please try again.");
-    // } finally {
-    //   setLoading(false);
-    // }
   };
+
+  useEffect(() => {
+    getmenu();
+  }, []);
 
   return (
     <Box sx={{ maxWidth: 600, margin: "2rem auto", textAlign: "center" }}>

@@ -20,6 +20,8 @@ class Company(db.Model):
     # queued_posts: Mapped[list["Post"]] = relationship(
     # list of post ids queued
     menu: Mapped[dict] = mapped_column(JSON, nullable=True)  # menu stored as JSON
+    week_tally: Mapped[int] = mapped_column(default=0)  # number of posts this week
+    # NEED A CRON JOB TO RESET THIS EVERY WEEK
 
 
 class ScheduledPost(db.Model):
@@ -27,12 +29,16 @@ class ScheduledPost(db.Model):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     company_id: Mapped[int] = mapped_column(ForeignKey("company.id"))
-
+    local_id: Mapped[int] = mapped_column()  # 1-12
+    day_of_week: Mapped[int] = mapped_column()  # 0-6 (Sun-Sat)
+    time: Mapped[int] = mapped_column()  # 0-3 for morning, afternoon, evening, night
+    posted: Mapped[bool] = mapped_column(default=False)
     mode: Mapped[str] = mapped_column()  # "auto" or "manual"
     promotion: Mapped[str] = mapped_column(nullable=True)  # if auto
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
 
     company: Mapped["Company"] = relationship(back_populates="scheduled_posts")
+    # NEED A CRON JOB TO RESET ALL POSTS ONCE A MONTH ON THE FIRST PREFEREBLY
 
 
 class User(db.Model):

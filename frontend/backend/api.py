@@ -85,7 +85,7 @@ def get_current_time():
 def create_company_user():
     # creates a test company and user
     new_company = Company(
-        name="Test Company",
+        name="TestCompany",
         email="twiddle dee",
         bearer_token="testtoken123",
     )
@@ -218,7 +218,7 @@ def get_contacts_ghl(headers):
         params = {"limit": limit, "page": page, "locationId": "SAMRMXK1dqFwzEIFsOND"}
         response = requests.get(url, headers=headers, params=params)
         data = response.json()
-        # print("data:", data)
+        print("data:", data)
 
         if "contacts" not in data or not data["contacts"]:
             break
@@ -381,7 +381,7 @@ def set_post_schedule(current_user):
 def check_company_state(current_user):
     user = current_user
     company = Company.query.filter_by(id=user.company_id).first()
-    company.state = 2  # set to active for testing
+    # company.state = 2  # set to active for testing
     db.session.commit()
     return jsonify({"state": company.state}), 200
 
@@ -421,32 +421,121 @@ def parse_menu():
             }
         ],
     )
-    print("ai response before", response.output_text)
-    menu = json.loads(response.output_text)
+    print(
+        "ai response before", "Type: ", type(response.output_text), response.output_text
+    )
+    # menu = json.loads(response.output_text)
 
-    print("ai response after", menu)
+    # print("ai response after", "Type: ", type(menu), menu)
 
-    return jsonify(menu)
+    return jsonify(response.output_text)
 
 
 # after recieving the ai, users can tweak their menu and submit it
 # need to create an endpoint to recieve the finalized menu and store it
 # create a workflow that checks the time and sends promotions about the menu on set times
 # for manual, on submit they can choose to schedule, and that post will be scheduled and take the next spot in the queue
+def create_scheduled_post(company, post):
+    # utility function to create a scheduled post
+    # this function will be called by the cron job
+    # this func will use the information in the queued post
+    # this will use the model to generate post content
+    # this will use the menu stored in company
+
+    # What do I need to plug into the ai(turn these into strings):
+    #   Post Templates / DONE
+    #   Menu /
+    #   Promotion Type / DONE
+
+    menu = json.dumps(company.menu)
+
+    t = templates
+
+    # First, figure out which bucket of templates to use
+    promotion = post.promotion
+    t = templates[promotion]
+
+    prompt = f"""
+        You are an assistant that helps restaurant owners send text messages to customers.
+        Choose a menu item that you think will generate based on the restaurant's provided menu and promotion type.
+        Menu:
+        {menu}
+        
+        Choose the single most appropriate template based on the restaurant's provided info.
+        Return **only** the number of the template (1–{len(t)}), with no explanation or text.
+
+        Templates:
+        {chr(10).join([f"{i+1}. {t}" for i, t in enumerate(t)] )}
+        """
+    # Info: {content}
+    # """
+
+    prompt = f"""
+        You are an assistant that selects promotions for restaurants.
+
+        Given:
+        1. A list of menu items.
+        2. A list of message templates.
+        3. Restaurant info.
+
+        Your task:
+        - Choose **one** menu item from the menu that best matches the restaurant info.
+        - Choose **one** template number (1–{len(t)}) that best fits the info.
+
+        Return ONLY a valid JSON array in this exact format:
+        [
+        "<menu item>",
+        <template_number>
+        ]
+
+        Do not include explanations, text, or commentary.
+
+        Menu:
+        {menu}
+
+        Templates:
+        {chr(10).join([f"{i+1}. {tpl}" for i, tpl in enumerate(t)])}"""
+
+    # Restaurant Info:
+    # {content}
+    # """
+
+    response = client.responses.create(model="gpt-4o-mini", input=prompt)
+
+    try:
+        template_index = int(response.output_text) - 1
+        selected_template = t[template_index]
+    except (ValueError, IndexError):
+        raise ValueError(f"Invalid AI response: {response.output_text}")
+
+    # return new_post
 
 
 @app.route("/api/schedule_posts", methods=["POST"])
 def schedule_posts():
     # This endpoint would be called by a scheduler (like cron) to check for scheduled posts
     # Get all companies that have posts in queue
+    data = request.get_json()
+    # Retrieve the time from request data
+    current_time = data.get("current_time")  # expected format: 0-3
+    weekday_number = datetime.today().weekday()  # 0-6 (Mon-Sun)
+    # how to filter by companies that have posted
     companies = Company.query.all()
 
     results = []
 
     for company in companies:
+        # If company has posted thrice this week, skip
+        if company.week_tally >= 3:
+            results.append({"company_id": company.id, "status": "weekly limit reached"})
+            continue
+
         # Grab oldest scheduled post for this company (the front of the queue)
+
         next_post = (
-            ScheduledPost.query.filter_by(company_id=company.id)
+            ScheduledPost.query.filter_by(
+                posted=False, day_of_week=weekday_number, time=current_time, mode="auto"
+            )
             .order_by(ScheduledPost.created_at.asc())
             .first()
         )
@@ -458,10 +547,12 @@ def schedule_posts():
         # ----- Your posting logic goes here -----
         try:
             # Example: Your post-sending function
-            send_post(company, next_post)
+            create_scheduled_post(company, next_post)
 
             # Remove the processed post from the queue
-            db.session.delete(next_post)
+            # db.session.delete(next_post)
+            next_post.posted = True
+            company.week_tally += 1  # increment the week's post tally
             db.session.commit()
 
             results.append(
@@ -476,7 +567,7 @@ def schedule_posts():
             results.append(
                 {"company_id": company.id, "error": str(e), "status": "failed"}
             )
-
+    print("scheduling results:", results)
     return jsonify({"results": results}), 200
 
 
@@ -489,7 +580,9 @@ def submit_final_menu(current_user):
     company = Company.query.filter_by(id=user.company_id).first()
 
     # Store the finalized menu in the company's record (you may want to create a new table for menus)
-    company.menu = json.dumps(menu)  # assuming you add a 'menu' column to Company model
+    # company.menu = json.dumps(menu)  # assuming you add a 'menu' column to Company model
+    company.menu = menu
+    company.state = 2  # set company state to active
     db.session.commit()
 
     return jsonify({"message": "Final menu submitted successfully!"}), 200
@@ -504,3 +597,13 @@ def test_s3():
         return {"success": True, "buckets": result["Buckets"]}
     except Exception as e:
         return {"success": False, "error": str(e)}, 500
+
+
+@app.route("/api/get_menu", methods=["GET"])
+@token_required
+def get_menu(current_user):
+    user = current_user
+    company = Company.query.filter_by(id=user.company_id).first()
+    print(type(company.menu))
+    # print(type(json.loads(company.menu)))
+    return jsonify({"menu": company.menu}), 200
