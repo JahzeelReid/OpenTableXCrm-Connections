@@ -3,3 +3,4 @@ credentials.json
 /venv
 /instance
 __pycache__/
+node_modules/
