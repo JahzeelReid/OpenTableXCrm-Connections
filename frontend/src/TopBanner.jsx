@@ -3,6 +3,10 @@ import { useNavigate } from "react-router-dom";
 
 export default function TopBanner() {
   const navigate = useNavigate();
+  const API_BASE_URL =
+    process.env.NODE_ENV === "development"
+      ? "http://127.0.0.1:5000" // Development
+      : "https://opentablexcrm-connections.onrender.com"; // Production
 
   return (
     <AppBar position="static" elevation={1}>
@@ -22,6 +26,7 @@ export default function TopBanner() {
         <Button color="inherit" onClick={() => navigate("/setup")}>
           Setup
         </Button>
+        <Button color="inherit">{API_BASE_URL}</Button>
       </Toolbar>
     </AppBar>
   );
