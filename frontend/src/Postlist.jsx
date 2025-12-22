@@ -1,11 +1,14 @@
-import React, { use, useEffect, useState } from "react";
+import React, { use, useEffect, useState, useMemo } from "react";
 import { Card, CardContent, Typography } from "@mui/material";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import { useContext } from "react";
+import { AuthContext } from "./authContext";
 
-export default function PostList() {
+export default function PostList(props) {
   const [posts, setPosts] = useState([]);
   const navigate = useNavigate();
+  const { token, authReady } = useContext(AuthContext);
 
   //   useEffect(() => {
   //     fetch("/api/posts")
@@ -16,7 +19,10 @@ export default function PostList() {
   function fetchPosts() {
     axios({
       method: "GET",
-      url: `/api/posts`,
+      url: `${props.url}/api/posts`,
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
       data: {},
     })
       .then((response) => {
@@ -35,22 +41,51 @@ export default function PostList() {
       });
   }
 
+  const formattedPosts = useMemo(() => {
+    return posts.map((post) => ({
+      ...post,
+      formattedDate: new Date(post.created_at).toLocaleString([], {
+        weekday: "short",
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZoneName: "short",
+      }),
+    }));
+  }, [posts]);
+
   useEffect(() => {
+    if (!authReady) return;
+    if (!token) return;
     fetchPosts();
-  }, []);
+  }, [authReady, token]);
 
   return (
     <>
       <Typography variant="h5" gutterBottom>
         Previous Posts
       </Typography>
-      {posts.map((post, index) => (
-        <Card key={index} sx={{ mb: 2 }}>
+      {formattedPosts.map((post, index) => (
+        <Card key={index} sx={{ mb: 2, position: "relative" }}>
           <CardContent>
+            <Typography
+              variant="caption"
+              sx={{
+                position: "absolute",
+                top: 8,
+                right: 12,
+                color: "text.secondary",
+              }}
+            >
+              {post.formattedDate}
+            </Typography>
             <Typography
               variant="h6"
               dangerouslySetInnerHTML={{ __html: post.content }}
             />
+
             {post.image && (
               <img
                 src={post.image}

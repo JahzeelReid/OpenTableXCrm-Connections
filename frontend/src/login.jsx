@@ -10,12 +10,15 @@ import {
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { useContext } from "react";
+import { AuthContext } from "./authContext";
 
-export default function Login() {
+export default function Login(props) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const { token, setToken } = useContext(AuthContext);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,7 +26,8 @@ export default function Login() {
 
     axios({
       method: "POST",
-      url: `/api/login`,
+      url: `${props.url}/api/login`,
+      withCredentials: true,
       data: {
         username: username,
         password: password,
@@ -31,6 +35,8 @@ export default function Login() {
     })
       .then((response) => {
         console.log("Login successful:", response.data);
+        setToken(response.data.access_token); // Store token in context
+        sessionStorage.setItem("token", response.data.access_token);
         navigate("/dashboard");
       })
       .catch((error) => {

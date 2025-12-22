@@ -6,12 +6,15 @@ import PostList from "./Postlist";
 import Analytics from "./Analytics";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { useContext } from "react";
+import { AuthContext } from "./authContext";
 
-export default function Dashboard() {
+export default function Dashboard(props) {
   const [openEditor, setOpenEditor] = useState(false);
   const [content, setContent] = useState("");
   const [image, setImage] = useState(null);
   const navigate = useNavigate();
+  const { token, authReady } = useContext(AuthContext);
   const formData = new FormData();
   formData.append("content", JSON.stringify(content));
   formData.append("title", "New Post Title");
@@ -23,11 +26,13 @@ export default function Dashboard() {
 
     axios({
       method: "POST",
-      url: `/api/new_post`,
+      url: `${props.url}/api/new_post`,
       data: formData,
       headers: {
         "Content-Type": "multipart/form-data",
+        Authorization: `Bearer ${token}`,
       },
+      withCredentials: true,
     })
       .then((response) => {
         console.log("Post Submitted:", response.data);
@@ -47,12 +52,16 @@ export default function Dashboard() {
   const check_company_state = () => {
     axios({
       method: "GET",
-      url: `/api/check_company_state`,
+      url: `${props.url}/api/check_company_state`,
+      withCredentials: true,
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
     })
       .then((response) => {
         console.log("Company State:", response.data);
         if (response.data.state === 1) {
-          navigate("/setup");
+          navigate("/menu");
         }
       })
 
@@ -66,8 +75,10 @@ export default function Dashboard() {
       });
   };
   useEffect(() => {
+    if (!authReady) return;
+    if (!token) return;
     check_company_state();
-  }, []);
+  }, [authReady, token]);
 
   return (
     <Container maxWidth="md" sx={{ mt: 4 }}>
@@ -75,8 +86,8 @@ export default function Dashboard() {
         Dashboard
       </Typography>
 
-      <Analytics />
-      <PostList />
+      <Analytics url={props.url} />
+      <PostList url={props.url} />
 
       <Fab
         color="primary"
@@ -93,6 +104,7 @@ export default function Dashboard() {
         setContent={setContent}
         setImage={setImage}
         handleSubmit={handleSubmit}
+        url={props.url}
       />
     </Container>
   );

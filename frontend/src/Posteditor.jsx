@@ -7,9 +7,12 @@ import RadioGroup from "@mui/material/RadioGroup";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import FormControl from "@mui/material/FormControl";
 import FormLabel from "@mui/material/FormLabel";
-import { TextField, Typography } from "@mui/material";
+import { TextField, Typography, Select, MenuItem } from "@mui/material";
 import InputAdornment from "@mui/material/InputAdornment";
+import axios from "axios";
 import React, { use, useEffect, useState } from "react";
+import { useContext } from "react";
+import { AuthContext } from "./authContext";
 
 export default function PostEditor({
   open,
@@ -18,6 +21,7 @@ export default function PostEditor({
   setContent,
   setImage,
   handleSubmit,
+  url,
 }) {
   const [selectedPromotion, setSelectedPromotion] = React.useState("");
   const [eventName, setEventName] = React.useState("");
@@ -25,6 +29,10 @@ export default function PostEditor({
   const [discountAmount, setDiscountAmount] = React.useState("");
   const [discountText, setDiscountText] = React.useState("");
   const [releaseDate, setReleaseDate] = React.useState("");
+  const [releaseTime, setReleaseTime] = React.useState("");
+  const [link, setLink] = React.useState("");
+  const [releaseType, setReleaseType] = React.useState("");
+  const [linklist, setLinkList] = useState({ links: [] });
   const promotion = [
     "Reservations",
     "Featured Dish",
@@ -39,6 +47,7 @@ export default function PostEditor({
     "Seasonal / Holiday Special",
     "Loyalty / VIP Message",
   ];
+  const { token, authReady } = useContext(AuthContext);
 
   useEffect(() => {
     setContent({
@@ -48,6 +57,9 @@ export default function PostEditor({
       discountAmount,
       discountText,
       releaseDate,
+      releaseTime,
+      releaseType,
+      link,
     });
   }, [
     selectedPromotion,
@@ -56,6 +68,9 @@ export default function PostEditor({
     discountAmount,
     discountText,
     releaseDate,
+    releaseTime,
+    releaseType,
+    link,
   ]);
 
   const editor = useEditor({
@@ -63,6 +78,34 @@ export default function PostEditor({
     content,
     onUpdate: ({ editor }) => setContent(editor.getHTML()),
   });
+
+  const getLinkList = () => {
+    axios({
+      method: "GET",
+      url: `${url}/api/get_tracked_links`,
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+      .then((response) => {
+        setLinkList(response.data);
+      })
+      .catch((error) => {
+        if (error.response && error.response.status === 401) {
+          console.warn("Session expired or invalid token.");
+          localStorage.removeItem("token"); // optional: clear stored token
+          navigate("/");
+        }
+        console.log(error.response);
+        console.log(error.response.status);
+        console.log(error.response.headers);
+      });
+  };
+  useEffect(() => {
+    if (!authReady) return;
+    if (!token) return;
+    getLinkList();
+  }, [authReady, token]);
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth>
@@ -229,8 +272,62 @@ export default function PostEditor({
               value={"Schedule"}
               control={<Radio />}
               label="Schedule for later"
+              onChange={(e) => setReleaseType(e.target.value)}
             />
           </RadioGroup>
+          {releaseType === "Schedule" && (
+            <>
+              <FormControl>
+                <Select
+                  value={releaseTime}
+                  onChange={(e) => setReleaseTime(e.target.value)}
+                  displayEmpty
+                >
+                  <MenuItem value="" disabled>
+                    Select Post Time
+                  </MenuItem>
+                  <MenuItem value="0">08:00 AM</MenuItem>
+                  <MenuItem value="1">12:00 PM</MenuItem>
+                  <MenuItem value="2">04:00 PM</MenuItem>
+                  <MenuItem value="3">08:00 PM</MenuItem>
+                </Select>
+              </FormControl>
+              <FormControl>
+                <Select
+                  value={releaseDate}
+                  onChange={(e) => setReleaseDate(e.target.value)}
+                  displayEmpty
+                >
+                  <MenuItem value="" disabled>
+                    Select Day of Week
+                  </MenuItem>
+                  <MenuItem value="6">Sunday</MenuItem>
+                  <MenuItem value="0">Monday</MenuItem>
+                  <MenuItem value="1">Tuesday</MenuItem>
+                  <MenuItem value="2">Wednesday</MenuItem>
+                  <MenuItem value="3">Thursday</MenuItem>
+                  <MenuItem value="4">Friday</MenuItem>
+                  <MenuItem value="5">Saturday</MenuItem>
+                </Select>
+              </FormControl>
+            </>
+          )}
+        </FormControl>
+        <FormControl fullWidth size="small" sx={{ mt: 2 }}>
+          <Select
+            value={link}
+            onChange={(e) => setLink(e.target.value)}
+            displayEmpty
+          >
+            <MenuItem value="" disabled>
+              Select Link
+            </MenuItem>
+            {linklist.links.map((link1) => (
+              <MenuItem key={link1} value={link1}>
+                {link1}
+              </MenuItem>
+            ))}
+          </Select>
         </FormControl>
         <Button variant="contained" sx={{ mt: 2 }} onClick={handleSubmit}>
           Submit Post

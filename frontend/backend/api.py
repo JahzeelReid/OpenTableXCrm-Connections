@@ -1,5 +1,5 @@
 import time
-from flask import Flask, request, jsonify, make_response
+from flask import Flask, request, jsonify, make_response, redirect
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy import JSON, Integer, String
@@ -15,6 +15,9 @@ import json
 from extensions import db
 from datetime import datetime, timezone, timedelta
 import base64
+import secrets
+import string
+from flask_cors import CORS
 
 
 # initialize the client with API key
@@ -44,17 +47,53 @@ class Base(DeclarativeBase):
 
 app = Flask(__name__)
 # configure the SQLite database, relative to the app instance folder
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///project.db"
+db_url = os.getenv("DATABASE_URL", "sqlite:///project.db")
+if db_url.startswith("postgres://"):
+    db_url = db_url.replace(
+        "postgres://", "postgresql://"
+    )  # Render uses an outdated URI format
+
+app.config["SQLALCHEMY_DATABASE_URI"] = db_url
+# app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///project.db"
 app.config["SECRET_KEY"] = "your_super_secret_key_here"
 # initialize the app with the extension
 db.init_app(app)
-from model import Company, User, Post, ScheduledPost
+from model import Company, TrackedLink, User, Post, ScheduledPost, LinkClick
 
 BASE_URL = "https://rest.gohighlevel.com/v1"
 
 
 with app.app_context():
     db.create_all()
+
+
+# class SafeDict(dict):
+#     def __missing__(self, key):
+#         return f"{{{key}}}"  # or "" if you want it empty
+
+
+class SafeDict(dict):
+    def __missing__(self, key):
+        return "{" + key + "}"  # leaves {missing_key} untouched
+
+
+CORS(
+    app,
+    supports_credentials=True,
+    resources={
+        r"/api/*": {
+            "origins": [
+                "http://localhost:5173",
+                "http://127.0.0.1:5173",
+                "https://your-frontend.onrender.com",
+            ],
+            "allow_headers": ["Content-Type", "Authorization"],
+            "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        }
+    },
+)
+
+# CORS(app, resources={r"/*": {"origins": "*"}})
 
 
 def get_header(company):
@@ -69,35 +108,16 @@ def get_header(company):
     return HEADERS
 
 
-@app.route("/api/time")
-def get_current_time():
-    response = client.responses.create(
-        model="gpt-4o",
-        instructions="Choose a template that best matches the theme and purpose of the information provided by the restuarunt owner. The chosen template will be sent to resturaunt goers via text. Return only the number of the template.",
-        input="How do I check if a Python object is an instance of a class?",
-    )
-
-    print(response.output_text)
-    return {"time": time.time()}
-
-
-@app.route("/api/create_company/user")
+@app.route("/api/create_company", methods=["GET"])
 def create_company_user():
     # creates a test company and user
     new_company = Company(
         name="TestCompany",
-        email="twiddle dee",
-        bearer_token="testtoken123",
+        bearer_token="pit-abbad67c-17df-4042-a4a4-927a127e0815",
+        location_id="SAMRMXK1dqFwzEIFsOND",
+        links={"links": ["https://example.com/reserve"]},
     )
     db.session.add(new_company)
-    db.session.flush()  # to get the id
-    new_user = User(
-        username="testuser",
-        email="email#aaa",
-        password="testpass",
-        company_id=new_company.id,
-    )
-    db.session.add(new_user)
     db.session.commit()
     return {"message": "Company and user created"}
 
@@ -150,35 +170,72 @@ def login():
         algorithm="HS256",
     )
 
-    response = make_response(jsonify({"token": token, "message": "Login successful"}))
-    response.set_cookie("jwt_token", token)
+    # response = make_response(jsonify({"token": token, "message": "Login successful"}))
+    # response.set_cookie(
+    #     "jwt_token",
+    #     token,
+    #     httponly=True,
+    #     secure=False,
+    #     samesite="Lax",
+    # )
+    # return response, 200
+    return (
+        jsonify(
+            {
+                "access_token": token,
+                "token_type": "Bearer",
+                "message": "Login successful",
+            }
+        ),
+        200,
+    )
 
-    return response, 200
+
+# def token_required(f):
+#     @wraps(f)
+#     def decorated(*args, **kwargs):
+#         token = request.cookies.get("jwt_token")
+
+#         if not token:
+#             return jsonify({"message": "Token is missing!"}), 401
+
+#         try:
+#             data = jwt.decode(token, app.config["SECRET_KEY"], algorithms=["HS256"])
+#             current_user = User.query.filter_by(public_id=data["public_id"]).first()
+#         except:
+#             return jsonify({"message": "Token is invalid!"}), 401
+
+#         return f(current_user, *args, **kwargs)
+
+#     return decorated
 
 
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        token = request.cookies.get("jwt_token")
+        auth_header = request.headers.get("Authorization")
 
-        if not token:
-            return jsonify({"message": "Token is missing!"}), 401
+        if not auth_header or not auth_header.startswith("Bearer "):
+            return jsonify({"error": "Missing token"}), 401
+
+        token = auth_header.split(" ")[1]
 
         try:
-            data = jwt.decode(token, app.config["SECRET_KEY"], algorithms=["HS256"])
+            data = jwt.decode(
+                token,
+                app.config["SECRET_KEY"],
+                algorithms=["HS256"],
+            )
             current_user = User.query.filter_by(public_id=data["public_id"]).first()
-        except:
-            return jsonify({"message": "Token is invalid!"}), 401
+
+        except jwt.ExpiredSignatureError:
+            return jsonify({"error": "Token expired"}), 401
+        except jwt.InvalidTokenError:
+            return jsonify({"error": "Invalid token"}), 401
 
         return f(current_user, *args, **kwargs)
 
     return decorated
-
-
-@app.route("/dashboard")
-@token_required
-def dashboard(current_user):
-    return f"Welcome {current_user.name}! You are logged in."
 
 
 def send_mms_ghl(contact_id, message, image_url, company):
@@ -247,15 +304,50 @@ def get_contacts_ghl(headers):
 @token_required
 def create_post(current_user):
     # retrieve data from frontend
-    # data = request.get_json()
-    # # user_id = data.get("user_id")
-    # title = data.get("title")
-    # content = data.get("content")
     title = request.form.get("title")
     # content = request.form.get("content")
     content_str = request.form.get("content")  # this is a string now
     content = json.loads(content_str)
-    image_url = "https://storage.googleapis.com/msgsndr/SAMRMXK1dqFwzEIFsOND/media/6922202477eb5bfc2f61f6e4.jpg"
+    image_url = None
+    company = Company.query.filter_by(id=current_user.company_id).first()
+    menu = company.menu
+
+    # check if the post is asap or scheduled
+    if content.get("releaseType") == "Schedule":
+        # if is scheduled, check if there are anymore manual posts available
+        # if so, call the next free post in line and update the information to auto
+        free_post = ScheduledPost.query.filter_by(
+            company_id=company.id, mode="manual", posted=False
+        ).first()
+        if free_post:
+            free_post.mode = "auto"
+            free_post.promotion = content["selectedPromotion"]
+            free_post.day_of_week = content["releaseDate"]
+            free_post.time = content["releaseTime"]
+            free_post.link = content["link"]
+            free_post.created_at = datetime.now()
+            db.session.commit()
+            return jsonify({"message": "Post scheduled successfully."}), 200
+        else:
+            return jsonify({"message": "No manual posts available to schedule."}), 400
+
+        # If not, post instantly. Check if their are anymore instant posts and charge if not
+
+    destination_link = content["link"]
+    # query for the special link
+    tracked_link = TrackedLink.query.filter_by(destination_url=destination_link).first()
+    link = (
+        f"http://127.0.0.1:5000/t/{tracked_link.token}"
+        if tracked_link
+        else destination_link
+    )
+
+    # CHECK IS THERE ARE MANUAL POSTS AVAILABLE
+    manual_post = ScheduledPost.query.filter_by(
+        company_id=company.id, mode="manual", posted=False
+    ).first()
+    if not manual_post:
+        return jsonify({"message": "No manual posts available."}), 400
 
     # File comes from request.files
     image = request.files.get("image")
@@ -270,20 +362,13 @@ def create_post(current_user):
             f"https://resturaunt-connect.s3.us-east-2.amazonaws.com/{image.filename}"
         )
 
-    print("data received at backend:", content)
+    print("data received at backend: ", content)
+    print("menu stored:", menu)
     # image = data.get("image")
     t = templates
 
     # First, figure out which bucket of templates to use
-    print("data received at backend:", content)
-    if content["selectedPromotion"] == "Reservations":
-        t = templates["reservation_templates"]
-    elif content["selectedPromotion"] == "Brunch":
-        t = templates["brunch_templates"]
-    elif content["selectedPromotion"] == "Dinner":
-        t = templates["dinner_templates"]
-    elif content["selectedPromotion"] == "Happy Hour":
-        t = templates["happy_hour_templates"]
+    t = templates[content["selectedPromotion"]]
 
     # second, send only that bucket to ai to choose from
     prompt = f"""
@@ -305,31 +390,73 @@ def create_post(current_user):
     try:
         template_index = int(response.output_text) - 1
         selected_template = t[template_index]
+        print("selected template:", selected_template)
     except (ValueError, IndexError):
         raise ValueError(f"Invalid AI response: {response.output_text}")
 
+    data = {
+        "link": link,
+    }
+
+    # IF "ITEM" IS IN TEMPLATE, FEED TEMPLATE TO AI TO SELECT AN ITEM
+    if "{item}" in selected_template:
+        items_list = "\n".join(
+            [f"- {item['name']} ({item['price']})" for item in menu["items"]]
+        )
+
+        item_prompt = f"""
+            You are an assistant that helps restaurant owners send text messages to customers.
+            Choose the single most appropriate menu item based on the restaurant's chosen Text Template.
+            Return **only** the name of the item, with no explanation or text.
+
+            Menu Items:
+            {items_list}
+
+            Info: {selected_template}
+            """
+        item_response = client.responses.create(model="gpt-4o-mini", input=item_prompt)
+        item_name = item_response.output_text.strip()
+        print("item selected by ai:", item_name)
+
+        # find the item in the menu to get more details if needed
+        # item = next((itm for itm in items_list if itm["name"] == item_name), None)
+        item = next(
+            (itm for itm in menu["items"] if itm.get("name") == item_name), None
+        )
+
+        data["item"] = item_name
+        if not item:
+            raise ValueError(f"AI selected an invalid item: {item_name}")
+
+        # now replace {{item}} in template with item details
+
+    message = selected_template.format_map(SafeDict(data))
+
     # pull all contacts from crm
     # user = User.query.filter_by(id=user_id).first()
-    user = current_user
-    company = Company.query.filter_by(id=user.company_id).first()
+
     headers = get_header(company)
     contacts = get_contacts_ghl(headers)
     # print("contacts:", contacts)
     for contact in contacts:
         contact_id = contact["id"]
         # send mms to each contact
-        message = selected_template.replace(
-            "{{contact.first_name}}", contact["contact_first_name"]
-        )
 
-        print("final message to send:", message)
-        send_mms_ghl(contact_id, message, image_url, company)
+        data = {
+            "contact.first_name": contact["contact_first_name"],
+        }
+        message1 = message.format_map(SafeDict(data))
+
+        print("final message to send: ", message1)
+        send_mms_ghl(contact_id, message1, image_url, company)
+
+    manual_post.posted = True
 
     # and send mms with image
     new_post = Post(
-        user_id=user.id,
-        title=title,
-        content=selected_template,
+        user_id=current_user.id,
+        title="title",
+        content=message,
         image_url=image_url if image else None,
         company_id=company.id,
     )
@@ -352,6 +479,8 @@ def get_posts(current_user):
             "content": post.content,
             "image_url": post.image_url,
             "user_id": post.user_id,
+            # "created_at": post.created_at.isoformat(),
+            "created_at": post.created_at,
         }
         output.append(post_data)
     return jsonify({"posts": output}), 200
@@ -360,17 +489,50 @@ def get_posts(current_user):
 @app.route("/api/set_post_schedule", methods=["POST"])
 @token_required
 def set_post_schedule(current_user):
+    # this function needs to take in an array of posts from the frontend
+    # it then need to create those posts in the db if they have not been created
+    # if they have been created, it needs to update them
+    # updates only the posts that has posted = false
     data = request.get_json()
     days = data.get("days")
     user = current_user
     company = Company.query.filter_by(id=user.company_id).first()
     print("day received:", days)
-    for post in days:
-        if post["mode"] == "auto":
-            new = ScheduledPost(
-                company_id=company.id, mode=post["mode"], promotion=post["promotion"]
-            )
+    posts = ScheduledPost.query.filter_by(company_id=company.id).all()
+    if not posts:
+        # create new scheduled posts
+        for post in days:
+            if post["mode"] == "auto":
+                new = ScheduledPost(
+                    company_id=company.id,
+                    mode=post["mode"],
+                    promotion=post["promotion"],
+                    local_id=post["local_id"],
+                    day_of_week=post["day_of_week"],
+                    time=post["time"],
+                    link=post["link"],
+                )
+            else:
+                new = ScheduledPost(
+                    company_id=company.id, mode=post["mode"], local_id=post["local_id"]
+                )
             db.session.add(new)
+    else:
+        # update existing scheduled posts
+        for post in days:
+            existing_post = ScheduledPost.query.filter_by(
+                company_id=company.id, local_id=post["local_id"], posted=False
+            ).first()
+            if existing_post:
+                if post["mode"] == "auto":
+                    existing_post.mode = post["mode"]
+                    existing_post.promotion = post["promotion"]
+                    existing_post.day_of_week = post["day_of_week"]
+                    existing_post.time = post["time"]
+                    existing_post.created_at = datetime.now()
+                    existing_post.link = post["link"]
+                else:
+                    existing_post.mode = post["mode"]
     db.session.commit()
 
     return jsonify({"message": "Scheduled post created!"}), 200
@@ -424,18 +586,18 @@ def parse_menu():
     print(
         "ai response before", "Type: ", type(response.output_text), response.output_text
     )
-    # menu = json.loads(response.output_text)
+    menu = json.loads(response.output_text)
 
     # print("ai response after", "Type: ", type(menu), menu)
-
-    return jsonify(response.output_text)
+    # return jsonify(response.output_text)
+    return jsonify({"menu": menu}), 200
 
 
 # after recieving the ai, users can tweak their menu and submit it
 # need to create an endpoint to recieve the finalized menu and store it
 # create a workflow that checks the time and sends promotions about the menu on set times
 # for manual, on submit they can choose to schedule, and that post will be scheduled and take the next spot in the queue
-def create_scheduled_post(company, post):
+def send_scheduled_post(company, post):
     # utility function to create a scheduled post
     # this function will be called by the cron job
     # this func will use the information in the queued post
@@ -447,66 +609,128 @@ def create_scheduled_post(company, post):
     #   Menu /
     #   Promotion Type / DONE
 
-    menu = json.dumps(company.menu)
+    menu = company.menu
 
     t = templates
+
+    destination_link = post.link
+    # query for the special link
+    tracked_link = TrackedLink.query.filter_by(destination_url=destination_link).first()
+    link = (
+        f"http://127.0.0.1:5000/t/{tracked_link.token}"
+        if tracked_link
+        else destination_link
+    )
+
+    print("New link: ", link)
 
     # First, figure out which bucket of templates to use
     promotion = post.promotion
     t = templates[promotion]
 
+    stringinfo = f"""
+        "Day of the week: "
+        + {str(post.day_of_week)}
+        + ", Time of day: "
+        + {str(post.time)}
+        + ", Menu: "
+        + {menu}
+    """
+    # second, send only that bucket to ai to choose from
     prompt = f"""
         You are an assistant that helps restaurant owners send text messages to customers.
-        Choose a menu item that you think will generate based on the restaurant's provided menu and promotion type.
-        Menu:
-        {menu}
-        
         Choose the single most appropriate template based on the restaurant's provided info.
         Return **only** the number of the template (1–{len(t)}), with no explanation or text.
 
         Templates:
         {chr(10).join([f"{i+1}. {t}" for i, t in enumerate(t)] )}
+
+        Info: {stringinfo}
+
         """
-    # Info: {content}
-    # """
-
-    prompt = f"""
-        You are an assistant that selects promotions for restaurants.
-
-        Given:
-        1. A list of menu items.
-        2. A list of message templates.
-        3. Restaurant info.
-
-        Your task:
-        - Choose **one** menu item from the menu that best matches the restaurant info.
-        - Choose **one** template number (1–{len(t)}) that best fits the info.
-
-        Return ONLY a valid JSON array in this exact format:
-        [
-        "<menu item>",
-        <template_number>
-        ]
-
-        Do not include explanations, text, or commentary.
-
-        Menu:
-        {menu}
-
-        Templates:
-        {chr(10).join([f"{i+1}. {tpl}" for i, tpl in enumerate(t)])}"""
-
-    # Restaurant Info:
-    # {content}
-    # """
 
     response = client.responses.create(model="gpt-4o-mini", input=prompt)
+    # third, Parse response and send that template to contacts
+    print("ai response ", response.output_text)
+    # send info to ai
 
     try:
         template_index = int(response.output_text) - 1
         selected_template = t[template_index]
     except (ValueError, IndexError):
         raise ValueError(f"Invalid AI response: {response.output_text}")
+
+    data = {
+        # "link": content["link"],
+        "link": link,
+    }
+
+    # IF "ITEM" IS IN TEMPLATE, FEED TEMPLATE TO AI TO SELECT AN ITEM
+    print("menu items type:", type(menu))
+    if "{item}" in selected_template:
+        items_list = "\n".join(
+            [f"- {item['name']} ({item['price']})" for item in menu["items"]]
+        )
+
+        item_prompt = f"""
+            You are an assistant that helps restaurant owners send text messages to customers.
+            Choose the single most appropriate menu item based on the restaurant's chosen Text Template.
+            Return **only** the name of the item, with no explanation or text.
+
+            Menu Items:
+            {items_list}
+
+            Info: {selected_template}
+            """
+        item_response = client.responses.create(model="gpt-4o-mini", input=item_prompt)
+        item_name = item_response.output_text.strip()
+        print("item selected by ai:", item_name)
+
+        # find the item in the menu to get more details if needed
+        # item = next((itm for itm in items_list if itm["name"] == item_name), None)
+        item = next(
+            (itm for itm in menu["items"] if itm.get("name") == item_name), None
+        )
+
+        data["item"] = item_name
+        if not item:
+            raise ValueError(f"AI selected an invalid item: {item_name}")
+
+        # now replace {{item}} in template with item details
+
+    message1 = selected_template.format_map(SafeDict(data))
+
+    # pull all contacts from crm
+    # user = User.query.filter_by(id=user_id).first()
+
+    headers = get_header(company)
+    contacts = get_contacts_ghl(headers)
+    # print("contacts:", contacts)
+    for contact in contacts:
+        contact_id = contact["id"]
+        # send mms to each contact
+
+        data = {
+            "contact.first_name": contact["contact_first_name"],
+        }
+        message = message1.format_map(SafeDict(data))
+
+        print("final message to send: ", message)
+        send_mms_ghl(contact_id, message, None, company)
+
+    post.posted = True
+
+    # and send mms with image
+    new_post = Post(
+        user_id=0,
+        title="title",
+        content=message1,
+        image_url=None,
+        company_id=company.id,
+    )
+    db.session.add(new_post)
+    db.session.commit()
+    return jsonify({"message": "Post created and messages sent!"}), 200
 
     # return new_post
 
@@ -545,9 +769,10 @@ def schedule_posts():
             continue
 
         # ----- Your posting logic goes here -----
+        send_scheduled_post(company, next_post)
         try:
             # Example: Your post-sending function
-            create_scheduled_post(company, next_post)
+            send_scheduled_post(company, next_post)
 
             # Remove the processed post from the queue
             # db.session.delete(next_post)
@@ -588,17 +813,6 @@ def submit_final_menu(current_user):
     return jsonify({"message": "Final menu submitted successfully!"}), 200
 
 
-@app.route("/test-s3")
-def test_s3():
-    print(os.getenv("AWS_ACCESS_KEY_ID"))
-    print(os.getenv("AWS_SECRET_ACCESS_KEY"))
-    try:
-        result = s3.list_buckets()
-        return {"success": True, "buckets": result["Buckets"]}
-    except Exception as e:
-        return {"success": False, "error": str(e)}, 500
-
-
 @app.route("/api/get_menu", methods=["GET"])
 @token_required
 def get_menu(current_user):
@@ -607,3 +821,126 @@ def get_menu(current_user):
     print(type(company.menu))
     # print(type(json.loads(company.menu)))
     return jsonify({"menu": company.menu}), 200
+
+
+@app.route("/api/get_schedule", methods=["GET"])
+@token_required
+def get_schedule(current_user):
+    user = current_user
+    company = Company.query.filter_by(id=user.company_id).first()
+    scheduled_posts = ScheduledPost.query.filter_by(company_id=company.id).all()
+    output = []
+    for post in scheduled_posts:
+        post_data = {
+            "id": post.id,
+            "local_id": post.local_id,
+            "day_of_week": post.day_of_week,
+            "time": post.time,
+            "posted": post.posted,
+            "mode": post.mode,
+            "promotion": post.promotion,
+            "link": post.link,
+        }
+        output.append(post_data)
+    return jsonify({"schedule": output}), 200
+
+
+# @app.route("/api/reset_weekly_tallies", methods=["POST"])
+
+
+def generate_token(length=6):
+    alphabet = string.ascii_letters + string.digits
+    return "".join(secrets.choice(alphabet) for _ in range(length))
+
+
+@app.route("/t/<token>")
+def track_click(token):
+    link = TrackedLink.query.filter_by(token=token).first()
+    print("Token:", link.token)
+    print("Destination URL:", link.destination_url if link else "No link found")
+
+    if not link:
+        return redirect("https://yourapp.com", code=302)
+
+    click = LinkClick(
+        tracked_link_id=link.id,
+        ip_address=request.remote_addr,
+        user_agent=request.headers.get("User-Agent"),
+    )
+
+    db.session.add(click)
+    db.session.commit()
+
+    return redirect(f"https://{link.destination_url}", code=302)
+
+
+@app.route("/api/create_tracked_link", methods=["POST"])
+@token_required
+def create_tracked_link(current_user):
+    user = current_user
+    company = Company.query.filter_by(id=user.company_id).first()
+    data = request.get_json()
+    links = data.get("links")
+    c = 0
+    for link in links:
+        # check if link already exists
+        existing_link = TrackedLink.query.filter_by(
+            destination_url=link, company_id=company.id
+        ).first()
+        if existing_link:
+            continue
+        # does nothing if link exists
+
+        destination_url = link
+        token = generate_token()
+
+        new_link = TrackedLink(
+            token=token,
+            destination_url=destination_url,
+            company_id=company.id,
+        )
+        c += 1
+
+        db.session.add(new_link)
+
+    db.session.commit()
+    msg = f"{c} links created."
+
+    return jsonify({"message": msg}), 200
+
+
+@app.route("/api/get_tracked_links", methods=["GET"])
+@token_required
+def get_tracked_links(current_user):
+    user = current_user
+    company = Company.query.filter_by(id=user.company_id).first()
+    links = TrackedLink.query.filter_by(company_id=company.id).all()
+    output = []
+    for link in links:
+        output.append(link.destination_url)
+    return jsonify({"links": output}), 200
+
+
+# Presets
+# override for item names
+# company link tracking
+# add link choice to post creation and beutiy /menu to displat and edit links
+# change setup to include link choice
+
+
+@app.route("/api/linkanalytics", methods=["GET"])
+@token_required
+def link_analytics(current_user):
+    user = current_user
+    company = Company.query.filter_by(id=user.company_id).first()
+    links = TrackedLink.query.filter_by(company_id=company.id).all()
+    output = []
+    for link in links:
+        # link_data = {
+        #     "url": link.destination_url,
+        #     "clicks": link.clicks,
+        #     "conversions": link.conversions,
+        # }
+        clicks = LinkClick.query.filter_by(tracked_link_id=link.id).all()
+        output.append({"name": link.destination_url, "value": len(clicks)})
+    return jsonify({"link_analytics": output}), 200

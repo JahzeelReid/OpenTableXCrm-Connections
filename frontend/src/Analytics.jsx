@@ -1,4 +1,7 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { useContext } from "react";
+import { AuthContext } from "./authContext";
+
 import { Card, CardContent, Typography } from "@mui/material";
 import {
   BarChart,
@@ -8,14 +11,48 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import axios from "axios";
 
-const data = [
-  { name: "Views", value: 2400 },
-  { name: "Clicks", value: 1398 },
-  { name: "Engagements", value: 9800 },
-];
+export default function Analytics(props) {
+  const { token, authReady } = useContext(AuthContext);
+  const [data, setData] = useState([
+    { name: "google.com", value: 11 },
+    { name: "Bing.com", value: 1 },
+    { name: "Doordash.com", value: 5 },
+  ]);
 
-export default function Analytics() {
+  function getdata() {
+    axios({
+      method: "GET",
+      url: `${props.url}/api/linkanalytics`,
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      withCredentials: true,
+    })
+      .then((response) => {
+        // Handle the response data
+        setData(response.data.link_analytics);
+        console.log(response.data);
+      })
+      .catch((error) => {
+        if (error.response && error.response.status === 401) {
+          console.warn("Session expired or invalid token.");
+          localStorage.removeItem("token"); // optional: clear stored token
+          navigate("/");
+        }
+        console.log(error.response);
+        console.log(error.response.status);
+        console.log(error.response.headers);
+      });
+  }
+
+  useEffect(() => {
+    if (!authReady) return; //  wait
+    if (!token) return; // not logged in
+    getdata();
+  }, [authReady, token]);
+
   return (
     <Card sx={{ mb: 3 }}>
       <CardContent>

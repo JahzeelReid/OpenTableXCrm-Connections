@@ -3,111 +3,24 @@ import React, { useCallback, useEffect, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { Box, Typography, Button } from "@mui/material";
 import axios from "axios";
+import { useContext } from "react";
+import { AuthContext } from "./authContext";
 
-export default function MenuUploader() {
+export default function MenuUploader(props) {
   const [files, setFiles] = useState([]);
+  const { token, authReady } = useContext(AuthContext);
   const navigate = useNavigate();
   const [menuItems, setMenuItems] = useState();
-  //     {
-  //     menu: {
-  //       items: [
-  //         {
-  //           name: "House Salad",
-  //           price: "$6.00",
-  //         },
-  //         {
-  //           name: "Edamame",
-  //           price: "$8.50",
-  //         },
-  //         {
-  //           name: "Spicy Garlic Edamame",
-  //           price: "$12.25",
-  //         },
-  //         {
-  //           name: "Fried Gyoza (6 pcs)",
-  //           price: "$8.00",
-  //         },
-  //         {
-  //           name: "Age Dashi Tofu",
-  //           price: "$9.75",
-  //         },
-  //         {
-  //           name: "Chicken Karaage",
-  //           price: "$10.75",
-  //         },
-  //         {
-  //           name: "Fried Ika Geso",
-  //           price: "$10.75",
-  //         },
-  //         {
-  //           name: "Fried Oyster",
-  //           price: "$10.75",
-  //         },
-  //         {
-  //           name: "Tempura Appetizer",
-  //           price: "$11.50",
-  //         },
-  //         {
-  //           name: "Soft Shell Crab",
-  //           price: "$16.50",
-  //         },
-  //         {
-  //           name: "Salmon Collar",
-  //           price: "$15.75",
-  //         },
-  //         {
-  //           name: "Yellowtail Collar",
-  //           price: "$16.50",
-  //         },
-  //         {
-  //           name: "Inari (2 pcs)",
-  //           price: "$4.50",
-  //         },
-  //         {
-  //           name: "Seafood Nachos",
-  //           price: "$8.00",
-  //         },
-  //         {
-  //           name: "Kyuri-Su",
-  //           price: "$5.25",
-  //         },
-  //         {
-  //           name: "Tako-Su",
-  //           price: "$8.75",
-  //         },
-  //         {
-  //           name: "Ebi-Su",
-  //           price: "$8.75",
-  //         },
-  //         {
-  //           name: "Green Mussel 4pcs",
-  //           price: "$11.50",
-  //         },
-  //         {
-  //           name: "Monk Fish Liver",
-  //           price: "$11.50",
-  //         },
-  //         {
-  //           name: "Tuna Poke*",
-  //           price: "$13.00",
-  //         },
-  //         {
-  //           name: "Salmon Skin Salad",
-  //           price: "$17.50",
-  //         },
-  //         {
-  //           name: "Salmon Salad*",
-  //           price: "$21.50",
-  //         },
-  //       ],
-  //     },
-  //   }
   const [loading, setLoading] = useState(false);
+  const [linklist, setLinkList] = useState({ links: [] });
 
   const getmenu = () => {
     axios({
       method: "GET",
-      url: `/api/get_menu`,
+      url: `${props.url}/api/get_menu`,
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
     })
       .then((response) => {
         setMenuItems(response.data);
@@ -127,13 +40,65 @@ export default function MenuUploader() {
   const handleSubmit = () => {
     axios({
       method: "POST",
-      url: `/api/submit_final_menu`,
+      url: `${props.url}/api/submit_final_menu`,
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
       data: menuItems,
     })
       .then((response) => {
         console.log("Post Submitted:", response.data);
         alert("Menu saved! (functionality to be implemented)");
-        navigate("/dashboard");
+        // navigate("/dashboard");
+      })
+      .catch((error) => {
+        if (error.response && error.response.status === 401) {
+          console.warn("Session expired or invalid token.");
+          localStorage.removeItem("token"); // optional: clear stored token
+          navigate("/");
+        }
+        console.log(error.response);
+        console.log(error.response.status);
+        console.log(error.response.headers);
+      });
+  };
+
+  const submitLinks = () => {
+    axios({
+      method: "POST",
+      url: `${props.url}/api/create_tracked_link`,
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      data: linklist,
+    })
+      .then((response) => {
+        console.log("Links Submitted:", response.data);
+        alert("Links saved! (functionality to be implemented)");
+        // navigate("/dashboard");
+      })
+      .catch((error) => {
+        if (error.response && error.response.status === 401) {
+          console.warn("Session expired or invalid token.");
+          localStorage.removeItem("token"); // optional: clear stored token
+          navigate("/");
+        }
+        console.log(error.response);
+        console.log(error.response.status);
+        console.log(error.response.headers);
+      });
+  };
+
+  const getLinkList = () => {
+    axios({
+      method: "GET",
+      url: `${props.url}/api/get_tracked_links`,
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+      .then((response) => {
+        setLinkList(response.data);
       })
       .catch((error) => {
         if (error.response && error.response.status === 401) {
@@ -178,7 +143,7 @@ export default function MenuUploader() {
     })
       .then((response) => {
         console.log("Menu Parsed:", response.data);
-        setMenuItems(response.data);
+        setMenuItems(response.data.menu);
         setLoading(false);
       })
       .catch((error) => {
@@ -195,8 +160,11 @@ export default function MenuUploader() {
   };
 
   useEffect(() => {
+    if (!authReady) return;
+    if (!token) return;
     getmenu();
-  }, []);
+    getLinkList();
+  }, [authReady, token]);
 
   return (
     <Box sx={{ maxWidth: 600, margin: "2rem auto", textAlign: "center" }}>
@@ -361,6 +329,108 @@ export default function MenuUploader() {
         sx={{ mt: 2 }}
         onClick={handleSubmit}
         disabled={!menuItems?.menu?.items || menuItems.menu.items.length === 0}
+      >
+        Save Menu
+      </Button>
+      {linklist?.links && (
+        <Box sx={{ mt: 4 }}>
+          <Typography variant="h6" gutterBottom>
+            Menu Items
+          </Typography>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr>
+                <th
+                  style={{ borderBottom: "1px solid #ccc", padding: "0.5rem" }}
+                >
+                  Link
+                </th>
+
+                <th
+                  style={{ borderBottom: "1px solid #ccc", padding: "0.5rem" }}
+                >
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {linklist.links.map((link, i) => (
+                <tr key={i}>
+                  <td
+                    style={{
+                      borderBottom: "1px solid #eee",
+                      padding: "0.5rem",
+                    }}
+                  >
+                    <input
+                      value={link}
+                      onChange={(e) => {
+                        const updated = linklist.links.map((item, idx) =>
+                          idx === i ? e.target.value : item
+                        );
+
+                        setLinkList({ links: updated });
+                      }}
+                      style={{ width: "100%" }}
+                    />
+                  </td>
+
+                  <td
+                    style={{
+                      borderBottom: "1px solid #eee",
+                      padding: "0.5rem",
+                    }}
+                  >
+                    <button
+                      onClick={() => {
+                        const updated = linklist.links.filter(
+                          (_, idx) => idx !== i
+                        );
+                        setLinkList({ links: updated });
+                      }}
+                      style={{
+                        background: "red",
+                        color: "white",
+                        border: "none",
+                        padding: "6px 10px",
+                        borderRadius: "6px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Box>
+      )}
+
+      <button
+        onClick={() => {
+          setLinkList((prev) => ({
+            links: [...prev.links, ""],
+          }));
+        }}
+        style={{
+          marginTop: "12px",
+          background: "#1976d2",
+          color: "white",
+          border: "none",
+          padding: "8px 14px",
+          borderRadius: "6px",
+          cursor: "pointer",
+        }}
+      >
+        + Add Link
+      </button>
+      <Button
+        variant="contained"
+        color="success"
+        sx={{ mt: 2 }}
+        onClick={submitLinks}
+        disabled={!linklist.links || linklist.links.length === 0}
       >
         Save Menu
       </Button>
