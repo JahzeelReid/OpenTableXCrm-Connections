@@ -18,6 +18,7 @@ import {
 } from "@mui/material";
 import { useContext } from "react";
 import { AuthContext } from "./authContext";
+import TopBanner from "./TopBanner";
 
 const TOTAL_DAYS = 12;
 // Get tota; days from backend in future may change per company
@@ -170,132 +171,135 @@ export default function DayScheduler(props) {
   }, [authReady, token]);
 
   return (
-    <Box p={4}>
-      <Typography variant="h5" gutterBottom>
-        Days Scheduled
-      </Typography>
-      {/* <LinearProgress
+    <>
+      <TopBanner />
+      <Box p={4}>
+        <Typography variant="h5" gutterBottom>
+          Days Scheduled
+        </Typography>
+        {/* <LinearProgress
         variant="determinate"
         value={(scheduledCount / TOTAL_DAYS) * 100}
         sx={{ mb: 4, height: 10, borderRadius: 5 }}
       /> */}
-      <Grid container spacing={2}>
-        {days.map((day, index) => (
-          <Grid item xs={12} sm={6} md={4} key={index} alignItems="stretch">
-            <Card
-              sx={{
-                maxWidth: 345,
-                margin: "auto",
-                height: "100%",
-                opacity: day.posted ? 0.5 : 1,
-                backgroundColor: day.posted ? "grey.100" : "background.paper",
-                pointerEvents: day.posted ? "none" : "auto",
-              }}
-            >
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Promotion {index + 1}
-                </Typography>
+        <Grid container spacing={2}>
+          {days.map((day, index) => (
+            <Grid item xs={12} sm={6} md={4} key={index} alignItems="stretch">
+              <Card
+                sx={{
+                  maxWidth: 345,
+                  margin: "auto",
+                  height: "100%",
+                  opacity: day.posted ? 0.5 : 1,
+                  backgroundColor: day.posted ? "grey.100" : "background.paper",
+                  pointerEvents: day.posted ? "none" : "auto",
+                }}
+              >
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    Promotion {index + 1}
+                  </Typography>
 
-                {/* Auto / Manual Radial Menu */}
-                <ToggleButtonGroup
-                  value={day.mode}
-                  exclusive
-                  onChange={(e, value) =>
-                    value && handleModeChange(index, value)
-                  }
-                  aria-label="mode selection"
-                  size="small"
-                  sx={{ mb: 2 }}
-                >
-                  <ToggleButton value="auto">Auto</ToggleButton>
-                  <ToggleButton value="manual">Manual</ToggleButton>
-                </ToggleButtonGroup>
+                  {/* Auto / Manual Radial Menu */}
+                  <ToggleButtonGroup
+                    value={day.mode}
+                    exclusive
+                    onChange={(e, value) =>
+                      value && handleModeChange(index, value)
+                    }
+                    aria-label="mode selection"
+                    size="small"
+                    sx={{ mb: 2 }}
+                  >
+                    <ToggleButton value="auto">Auto</ToggleButton>
+                    <ToggleButton value="manual">Manual</ToggleButton>
+                  </ToggleButtonGroup>
 
-                {/* Promotion Radial Menu (if Auto is selected) */}
-                {day.mode === "auto" && (
-                  <>
-                    <FormControl fullWidth size="small">
-                      <Select
-                        value={day.promotion}
-                        onChange={(e) =>
-                          handlePromotionChange(index, e.target.value)
-                        }
-                        displayEmpty
-                      >
-                        <MenuItem value="" disabled>
-                          Select Promotion
-                        </MenuItem>
-                        {promotion.map((item) => (
-                          <MenuItem key={item} value={item}>
-                            {item}
+                  {/* Promotion Radial Menu (if Auto is selected) */}
+                  {day.mode === "auto" && (
+                    <>
+                      <FormControl fullWidth size="small">
+                        <Select
+                          value={day.promotion}
+                          onChange={(e) =>
+                            handlePromotionChange(index, e.target.value)
+                          }
+                          displayEmpty
+                        >
+                          <MenuItem value="" disabled>
+                            Select Promotion
                           </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                    <FormControl>
-                      <Select
-                        value={day.time}
-                        onChange={(e) =>
-                          handleTimeChange(index, e.target.value)
-                        }
-                        displayEmpty
-                      >
-                        <MenuItem value="" disabled>
-                          Select Post Time
-                        </MenuItem>
-                        <MenuItem value="0">08:00 AM</MenuItem>
-                        <MenuItem value="1">12:00 PM</MenuItem>
-                        <MenuItem value="2">04:00 PM</MenuItem>
-                        <MenuItem value="3">08:00 PM</MenuItem>
-                      </Select>
-                    </FormControl>
-                    <FormControl>
-                      <Select
-                        value={day.day_of_week}
-                        onChange={(e) =>
-                          handleDayOfWeekChange(index, e.target.value)
-                        }
-                        displayEmpty
-                      >
-                        <MenuItem value="" disabled>
-                          Select Day of Week
-                        </MenuItem>
-                        <MenuItem value="6">Sunday</MenuItem>
-                        <MenuItem value="0">Monday</MenuItem>
-                        <MenuItem value="1">Tuesday</MenuItem>
-                        <MenuItem value="2">Wednesday</MenuItem>
-                        <MenuItem value="3">Thursday</MenuItem>
-                        <MenuItem value="4">Friday</MenuItem>
-                        <MenuItem value="5">Saturday</MenuItem>
-                      </Select>
-                    </FormControl>
-                    <FormControl fullWidth size="small" sx={{ mt: 2 }}>
-                      <Select
-                        value={day.link}
-                        onChange={(e) =>
-                          handlelinkChange(index, e.target.value)
-                        }
-                        displayEmpty
-                      >
-                        <MenuItem value="" disabled>
-                          Select Link
-                        </MenuItem>
-                        {linklist.links.map((link) => (
-                          <MenuItem key={link} value={link}>
-                            {link}
+                          {promotion.map((item) => (
+                            <MenuItem key={item} value={item}>
+                              {item}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      <FormControl>
+                        <Select
+                          value={day.time}
+                          onChange={(e) =>
+                            handleTimeChange(index, e.target.value)
+                          }
+                          displayEmpty
+                        >
+                          <MenuItem value="" disabled>
+                            Select Post Time
                           </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-        <Button onClick={handleSubmit}> Submit Schedule </Button>
-      </Grid>
-    </Box>
+                          <MenuItem value="0">08:00 AM</MenuItem>
+                          <MenuItem value="1">12:00 PM</MenuItem>
+                          <MenuItem value="2">04:00 PM</MenuItem>
+                          <MenuItem value="3">08:00 PM</MenuItem>
+                        </Select>
+                      </FormControl>
+                      <FormControl>
+                        <Select
+                          value={day.day_of_week}
+                          onChange={(e) =>
+                            handleDayOfWeekChange(index, e.target.value)
+                          }
+                          displayEmpty
+                        >
+                          <MenuItem value="" disabled>
+                            Select Day of Week
+                          </MenuItem>
+                          <MenuItem value="6">Sunday</MenuItem>
+                          <MenuItem value="0">Monday</MenuItem>
+                          <MenuItem value="1">Tuesday</MenuItem>
+                          <MenuItem value="2">Wednesday</MenuItem>
+                          <MenuItem value="3">Thursday</MenuItem>
+                          <MenuItem value="4">Friday</MenuItem>
+                          <MenuItem value="5">Saturday</MenuItem>
+                        </Select>
+                      </FormControl>
+                      <FormControl fullWidth size="small" sx={{ mt: 2 }}>
+                        <Select
+                          value={day.link}
+                          onChange={(e) =>
+                            handlelinkChange(index, e.target.value)
+                          }
+                          displayEmpty
+                        >
+                          <MenuItem value="" disabled>
+                            Select Link
+                          </MenuItem>
+                          {linklist.links.map((link) => (
+                            <MenuItem key={link} value={link}>
+                              {link}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
+          <Button onClick={handleSubmit}> Submit Schedule </Button>
+        </Grid>
+      </Box>
+    </>
   );
 }

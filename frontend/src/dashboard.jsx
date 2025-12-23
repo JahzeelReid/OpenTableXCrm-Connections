@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useContext } from "react";
 import { AuthContext } from "./authContext";
+import TopBanner from "./TopBanner";
 
 export default function Dashboard(props) {
   const [openEditor, setOpenEditor] = useState(false);
@@ -81,31 +82,34 @@ export default function Dashboard(props) {
   }, [authReady, token]);
 
   return (
-    <Container maxWidth="md" sx={{ mt: 4 }}>
-      <Typography variant="h4" gutterBottom>
-        Dashboard
-      </Typography>
+    <>
+      <TopBanner />
+      <Container maxWidth="md" sx={{ mt: 4 }}>
+        <Typography variant="h4" gutterBottom>
+          Dashboard
+        </Typography>
 
-      <Analytics url={props.url} />
-      <PostList url={props.url} />
+        <Analytics url={props.url} />
+        <PostList url={props.url} />
 
-      <Fab
-        color="primary"
-        sx={{ position: "fixed", bottom: 30, right: 30 }}
-        onClick={() => setOpenEditor(true)}
-      >
-        <AddIcon />
-      </Fab>
+        <Fab
+          color="primary"
+          sx={{ position: "fixed", bottom: 30, right: 30 }}
+          onClick={() => setOpenEditor(true)}
+        >
+          <AddIcon />
+        </Fab>
 
-      <PostEditor
-        open={openEditor}
-        onClose={() => setOpenEditor(false)}
-        content={content}
-        setContent={setContent}
-        setImage={setImage}
-        handleSubmit={handleSubmit}
-        url={props.url}
-      />
-    </Container>
+        <PostEditor
+          open={openEditor}
+          onClose={() => setOpenEditor(false)}
+          content={content}
+          setContent={setContent}
+          setImage={setImage}
+          handleSubmit={handleSubmit}
+          url={props.url}
+        />
+      </Container>
+    </>
   );
 }

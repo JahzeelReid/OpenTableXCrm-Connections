@@ -9,7 +9,11 @@ export default function TopBanner() {
       : "https://opentablexcrm-connections.onrender.com"; // Production
 
   return (
-    <AppBar position="static" elevation={1}>
+    <AppBar
+      position="static"
+      elevation={1}
+      sx={{ backgroundColor: "white", color: "black" }}
+    >
       <Toolbar>
         {/* Left side (logo or title if you want later) */}
         <Box sx={{ flexGrow: 1 }} />
@@ -26,7 +30,6 @@ export default function TopBanner() {
         <Button color="inherit" onClick={() => navigate("/setup")}>
           Setup
         </Button>
-        <Button color="inherit">{API_BASE_URL}</Button>
       </Toolbar>
     </AppBar>
   );

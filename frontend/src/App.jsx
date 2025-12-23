@@ -8,7 +8,6 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Login from "./login";
 import DayScheduler from "./DayScheduler";
 import MenuUploader from "./MenuUploader";
-import TopBanner from "./TopBanner";
 import { useContext, useEffect } from "react";
 import { AuthContext } from "./authContext";
 
@@ -24,7 +23,6 @@ function App() {
   return (
     <>
       <Router>
-        <TopBanner />
         <Routes>
           <Route path="/" element={<Login url={API_BASE_URL} />} />
           <Route path="/dashboard" element={<Dashboard url={API_BASE_URL} />} />
