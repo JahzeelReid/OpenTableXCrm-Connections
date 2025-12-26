@@ -26,6 +26,11 @@ const TOTAL_DAYS = 12;
 export default function DayScheduler(props) {
   const navigate = useNavigate();
   const { token, authReady } = useContext(AuthContext);
+
+  const isAuto = (day) => day.mode === "auto";
+
+  const hasError = (day, value) => isAuto(day) && !value;
+
   const promotion = [
     "Reservations",
     "Featured Dish",
@@ -87,7 +92,17 @@ export default function DayScheduler(props) {
 
   const scheduledCount = days.filter((d) => d.mode === "auto").length;
 
+  const isDayValid = (day) =>
+    day.mode !== "auto" ||
+    (day.promotion && day.time && day.day_of_week && day.link);
+
   const handleSubmit = () => {
+    const invalidDays = days.filter((day) => !isDayValid(day));
+
+    if (invalidDays.length > 0) {
+      alert("All Auto days must have every field selected.");
+      return;
+    }
     axios({
       method: "POST",
       url: `${props.url}/api/set_post_schedule`,
@@ -218,7 +233,11 @@ export default function DayScheduler(props) {
                   {/* Promotion Radial Menu (if Auto is selected) */}
                   {day.mode === "auto" && (
                     <>
-                      <FormControl fullWidth size="small">
+                      <FormControl
+                        fullWidth
+                        size="small"
+                        error={hasError(day, day.promotion)}
+                      >
                         <Select
                           value={day.promotion}
                           onChange={(e) =>
@@ -236,7 +255,11 @@ export default function DayScheduler(props) {
                           ))}
                         </Select>
                       </FormControl>
-                      <FormControl>
+                      <FormControl
+                        fullWidth
+                        size="small"
+                        error={hasError(day, day.time)}
+                      >
                         <Select
                           value={day.time}
                           onChange={(e) =>
@@ -253,7 +276,11 @@ export default function DayScheduler(props) {
                           <MenuItem value="3">08:00 PM</MenuItem>
                         </Select>
                       </FormControl>
-                      <FormControl>
+                      <FormControl
+                        fullWidth
+                        size="small"
+                        error={hasError(day, day.day_of_week)}
+                      >
                         <Select
                           value={day.day_of_week}
                           onChange={(e) =>
@@ -273,7 +300,12 @@ export default function DayScheduler(props) {
                           <MenuItem value="5">Saturday</MenuItem>
                         </Select>
                       </FormControl>
-                      <FormControl fullWidth size="small" sx={{ mt: 2 }}>
+                      <FormControl
+                        fullWidth
+                        size="small"
+                        sx={{ mt: 2 }}
+                        error={hasError(day, day.link)}
+                      >
                         <Select
                           value={day.link}
                           onChange={(e) =>

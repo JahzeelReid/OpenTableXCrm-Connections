@@ -887,7 +887,7 @@ def create_tracked_link(current_user):
         existing_link = TrackedLink.query.filter_by(
             destination_url=link, company_id=company.id
         ).first()
-        if existing_link:
+        if existing_link or link == "":
             continue
         # does nothing if link exists
 
@@ -944,3 +944,12 @@ def link_analytics(current_user):
         clicks = LinkClick.query.filter_by(tracked_link_id=link.id).all()
         output.append({"name": link.destination_url, "value": len(clicks)})
     return jsonify({"link_analytics": output}), 200
+
+
+@app.route("/api/weekly_reset", methods=["POST"])
+def weekly_reset():
+    companies = Company.query.all()
+    for company in companies:
+        company.week_tally = 0
+    db.session.commit()
+    return jsonify({"message": "Weekly tallies reset."}), 200
