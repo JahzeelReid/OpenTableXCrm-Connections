@@ -13,6 +13,7 @@ import axios from "axios";
 import React, { use, useEffect, useState } from "react";
 import { useContext } from "react";
 import { AuthContext } from "./authContext";
+import CircularProgress from "@mui/material/CircularProgress";
 
 export default function PostEditor({
   open,
@@ -22,6 +23,7 @@ export default function PostEditor({
   setImage,
   handleSubmit,
   url,
+  loading,
 }) {
   const [selectedPromotion, setSelectedPromotion] = React.useState("");
   const [eventName, setEventName] = React.useState("");
@@ -60,6 +62,7 @@ export default function PostEditor({
       releaseTime,
       releaseType,
       link,
+      loading,
     });
   }, [
     selectedPromotion,
@@ -71,6 +74,7 @@ export default function PostEditor({
     releaseTime,
     releaseType,
     link,
+    loading,
   ]);
 
   const editor = useEditor({
@@ -329,8 +333,13 @@ export default function PostEditor({
             ))}
           </Select>
         </FormControl>
-        <Button variant="contained" sx={{ mt: 2 }} onClick={handleSubmit}>
-          Submit Post
+        <Button
+          variant="contained"
+          sx={{ mt: 2 }}
+          onClick={handleSubmit}
+          disabled={loading}
+        >
+          {loading ? <CircularProgress size={24} /> : "Submit Post"}
         </Button>
       </DialogContent>
     </Dialog>

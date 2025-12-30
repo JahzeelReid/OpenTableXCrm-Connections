@@ -29,6 +29,7 @@ class Company(db.Model):
     links: Mapped[dict] = mapped_column(JSON, nullable=True)  # links stored as JSON
     week_tally: Mapped[int] = mapped_column(default=0)  # number of posts this week
     # NEED A CRON JOB TO RESET THIS EVERY WEEK
+    total_messages: Mapped[int] = mapped_column(default=0)  # total clicks tracked
 
 
 class ScheduledPost(db.Model):
@@ -46,7 +47,7 @@ class ScheduledPost(db.Model):
     promotion: Mapped[str] = mapped_column(nullable=True)  # if auto
     # created_at: Mapped[datetime] = mapped_column(default=datetime.now)
     created_at: Mapped[datetime] = mapped_column(
-        default=lambda: datetime.now(tz=eastern)
+        default=lambda: datetime.now(timezone.utc)
     )
     link: Mapped[str] = mapped_column(nullable=True)
 
@@ -72,7 +73,7 @@ class Post(db.Model):
     user_id: Mapped[int] = mapped_column(db.ForeignKey("user.id"))
     # created_at: Mapped[datetime] = mapped_column(default=datetime.now)
     created_at: Mapped[datetime] = mapped_column(
-        default=lambda: datetime.now(tz=eastern)
+        default=lambda: datetime.now(timezone.utc)
     )
 
 
@@ -89,7 +90,7 @@ class TrackedLink(db.Model):
 
     # created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
     created_at: Mapped[datetime] = mapped_column(
-        default=lambda: datetime.now(tz=eastern)
+        default=lambda: datetime.now(timezone.utc)
     )
 
 
@@ -103,7 +104,7 @@ class LinkClick(db.Model):
 
     # clicked_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
     created_at: Mapped[datetime] = mapped_column(
-        default=lambda: datetime.now(tz=eastern)
+        default=lambda: datetime.now(timezone.utc)
     )
     ip_address: Mapped[str] = mapped_column(String(45))
     user_agent: Mapped[str] = mapped_column(Text)

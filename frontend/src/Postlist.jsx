@@ -41,19 +41,42 @@ export default function PostList(props) {
       });
   }
 
+  // const formattedPosts = useMemo(() => {
+  //   return posts.map((post) => ({
+  //     ...post,
+  //     formattedDate: new Date(post.created_at).toLocaleString([], {
+  //       weekday: "short",
+  //       year: "numeric",
+  //       month: "short",
+  //       day: "numeric",
+  //       hour: "2-digit",
+  //       minute: "2-digit",
+  //       timeZoneName: "short",
+  //     }),
+  //   }));
+  // }, [posts]);
+
   const formattedPosts = useMemo(() => {
-    return posts.map((post) => ({
-      ...post,
-      formattedDate: new Date(post.created_at).toLocaleString([], {
-        weekday: "short",
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        timeZoneName: "short",
-      }),
-    }));
+    return posts.map((post) => {
+      // Ensure we have a valid date object
+      const date = new Date(post.created_at);
+
+      return {
+        ...post,
+        formattedDate: isNaN(date.getTime())
+          ? "Invalid Date"
+          : date.toLocaleString(undefined, {
+              // 'undefined' uses the browser's default locale
+              weekday: "short",
+              year: "numeric",
+              month: "short",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+              timeZoneName: "short",
+            }),
+      };
+    });
   }, [posts]);
 
   useEffect(() => {
@@ -64,7 +87,12 @@ export default function PostList(props) {
 
   return (
     <>
-      <Typography variant="h5" gutterBottom>
+      <Typography
+        variant="h6"
+        color="primary"
+        sx={{ mb: 2, fontWeight: "bold" }}
+        gutterBottom
+      >
         Previous Posts
       </Typography>
       {formattedPosts.map((post, index) => (

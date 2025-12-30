@@ -6,6 +6,7 @@ import axios from "axios";
 import { useContext } from "react";
 import { AuthContext } from "./authContext";
 import TopBanner from "./TopBanner";
+import Sidebar from "./sidebar";
 
 export default function MenuUploader(props) {
   const [files, setFiles] = useState([]);
@@ -169,7 +170,8 @@ export default function MenuUploader(props) {
 
   return (
     <>
-      <TopBanner />
+      {/* <TopBanner /> */}
+      <Sidebar />
       <Box sx={{ maxWidth: 600, margin: "2rem auto", textAlign: "center" }}>
         <Typography variant="h5" gutterBottom>
           Upload Restaurant Menu
@@ -452,7 +454,7 @@ export default function MenuUploader(props) {
           onClick={submitLinks}
           disabled={!linklist.links || linklist.links.length === 0}
         >
-          Save Menu
+          Save Links
         </Button>
       </Box>
     </>

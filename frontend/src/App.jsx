@@ -10,6 +10,7 @@ import DayScheduler from "./DayScheduler";
 import MenuUploader from "./MenuUploader";
 import { useContext, useEffect } from "react";
 import { AuthContext } from "./authContext";
+import { createTheme, ThemeProvider, CssBaseline } from "@mui/material";
 
 function App() {
   const [count, setCount] = useState(0);
@@ -20,18 +21,54 @@ function App() {
 
   const { token, setToken } = useContext(AuthContext);
 
+  // 1. Define the custom look
+  const theme = createTheme({
+    palette: {
+      mode: "dark",
+      background: {
+        default: "#0A0A0A", // The deep matte black from your image
+        paper: "#121212", // Slightly lighter for cards/sidebar
+      },
+      primary: {
+        main: "#C5A368", // The Gold accent color
+      },
+      text: {
+        primary: "#FFFFFF",
+        secondary: "#C5A368", // Making secondary text gold by default
+      },
+    },
+    typography: {
+      fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+      h4: {
+        fontWeight: 700,
+        letterSpacing: "0.05em",
+      },
+    },
+    shape: {
+      borderRadius: 12, // Rounded corners for a modern look
+    },
+  });
+
   return (
     <>
-      <Router>
-        <Routes>
-          <Route path="/" element={<Login url={API_BASE_URL} />} />
-          <Route path="/dashboard" element={<Dashboard url={API_BASE_URL} />} />
-          <Route path="/setup" element={<DayScheduler url={API_BASE_URL} />} />
-          <Route path="/menu" element={<MenuUploader url={API_BASE_URL} />} />
-          {/* <Route path="/new-post" element={<NewPost />} /> */}
-        </Routes>
-      </Router>
-      {/* <Dashboard /> */}
+      <ThemeProvider theme={theme}>
+        {/* CssBaseline resets browser styles to match the dark theme */}
+        <CssBaseline />
+        <Router>
+          <Routes>
+            <Route path="/" element={<Login url={API_BASE_URL} />} />
+            <Route
+              path="/dashboard"
+              element={<Dashboard url={API_BASE_URL} />}
+            />
+            <Route
+              path="/schedule"
+              element={<DayScheduler url={API_BASE_URL} />}
+            />
+            <Route path="/menu" element={<MenuUploader url={API_BASE_URL} />} />
+          </Routes>
+        </Router>
+      </ThemeProvider>
     </>
   );
 }

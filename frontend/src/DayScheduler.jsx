@@ -15,21 +15,68 @@ import {
   FormControl,
   Select,
   Button,
+  Fab,
 } from "@mui/material";
 import { useContext } from "react";
 import { AuthContext } from "./authContext";
 import TopBanner from "./TopBanner";
+import PostEditor from "./Posteditor";
+import AddIcon from "@mui/icons-material/Add";
+import Sidebar from "./sidebar";
 
 const TOTAL_DAYS = 12;
 // Get tota; days from backend in future may change per company
 
 export default function DayScheduler(props) {
+  const [openEditor, setOpenEditor] = useState(false);
+  const [content, setContent] = useState("");
+  const [image, setImage] = useState(null);
+  const formData = new FormData();
+  formData.append("content", JSON.stringify(content));
+  formData.append("title", "New Post Title");
+  formData.append("image", image); // <-- the actual file
+  const [loading, setLoading] = useState(false);
+
+  const handlePostSubmit = () => {
+    console.log("Post content:", content);
+    console.log("Attached image:", image);
+    setLoading(true);
+
+    axios({
+      method: "POST",
+      url: `${props.url}/api/new_post`,
+      data: formData,
+      headers: {
+        "Content-Type": "multipart/form-data",
+        Authorization: `Bearer ${token}`,
+      },
+      withCredentials: true,
+    })
+      .then((response) => {
+        console.log("Post Submitted:", response.data);
+        setOpenEditor(false);
+      })
+      .catch((error) => {
+        if (error.response && error.response.status === 401) {
+          console.warn("Session expired or invalid token.");
+          localStorage.removeItem("token"); // optional: clear stored token
+          navigate("/");
+        }
+        console.log(error.response);
+        console.log(error.response.status);
+        console.log(error.response.headers);
+      });
+    setLoading(false);
+  };
   const navigate = useNavigate();
   const { token, authReady } = useContext(AuthContext);
 
   const isAuto = (day) => day.mode === "auto";
 
-  const hasError = (day, value) => isAuto(day) && !value;
+  // const hasError = (day, value) => isAuto(day) && !value;/
+
+  const hasError = (day, value) =>
+    isAuto(day) && (value === "" || value === null || value === undefined);
 
   const promotion = [
     "Reservations",
@@ -92,9 +139,20 @@ export default function DayScheduler(props) {
 
   const scheduledCount = days.filter((d) => d.mode === "auto").length;
 
+  // const isDayValid = (day) =>
+  //   day.mode !== "auto" ||
+  //   (day.promotion && day.time && day.day_of_week && day.link);
+
+  const isEmpty = (v) => v === "" || v === null || v === undefined;
+
   const isDayValid = (day) =>
     day.mode !== "auto" ||
-    (day.promotion && day.time && day.day_of_week && day.link);
+    !(
+      isEmpty(day.promotion) ||
+      isEmpty(day.time) ||
+      isEmpty(day.day_of_week) ||
+      isEmpty(day.link)
+    );
 
   const handleSubmit = () => {
     const invalidDays = days.filter((day) => !isDayValid(day));
@@ -187,7 +245,8 @@ export default function DayScheduler(props) {
 
   return (
     <>
-      <TopBanner />
+      {/* <TopBanner /> */}
+      <Sidebar />
       <Box p={4}>
         <Typography variant="h5" gutterBottom>
           Days Scheduled
@@ -331,6 +390,24 @@ export default function DayScheduler(props) {
           ))}
           <Button onClick={handleSubmit}> Submit Schedule </Button>
         </Grid>
+        <Fab
+          color="primary"
+          sx={{ position: "fixed", bottom: 30, right: 30 }}
+          onClick={() => setOpenEditor(true)}
+        >
+          <AddIcon />
+        </Fab>
+
+        <PostEditor
+          open={openEditor}
+          onClose={() => setOpenEditor(false)}
+          content={content}
+          setContent={setContent}
+          setImage={setImage}
+          handleSubmit={handlePostSubmit}
+          url={props.url}
+          loading={loading}
+        />
       </Box>
     </>
   );

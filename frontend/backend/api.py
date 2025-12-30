@@ -1,8 +1,8 @@
-import time
+# import time
 from flask import Flask, request, jsonify, make_response, redirect
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy import JSON, Integer, String
+from sqlalchemy import JSON, Integer, String, func
 from werkzeug.security import generate_password_hash, check_password_hash
 import jwt
 import uuid
@@ -13,7 +13,7 @@ from templates import templates
 import boto3
 import json
 from extensions import db
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, time
 import base64
 import secrets
 import string
@@ -115,7 +115,6 @@ def create_company_user():
         name="TestCompany",
         bearer_token="pit-abbad67c-17df-4042-a4a4-927a127e0815",
         location_id="SAMRMXK1dqFwzEIFsOND",
-        links={"links": ["https://example.com/reserve"]},
     )
     db.session.add(new_company)
     db.session.commit()
@@ -437,6 +436,7 @@ def create_post(current_user):
 
     headers = get_header(company)
     contacts = get_contacts_ghl(headers)
+    company.total_messages += len(contacts)
     # print("contacts:", contacts)
     for contact in contacts:
         contact_id = contact["id"]
@@ -928,12 +928,19 @@ def get_tracked_links(current_user):
 # change setup to include link choice
 
 
-@app.route("/api/linkanalytics", methods=["GET"])
+@app.route("/api/todays_link_clicks", methods=["GET"])
 @token_required
 def link_analytics(current_user):
     user = current_user
     company = Company.query.filter_by(id=user.company_id).first()
     links = TrackedLink.query.filter_by(company_id=company.id).all()
+    # 1. Get the start and end of the current day in UTC
+    today_start = datetime.combine(datetime.now(timezone.utc).date(), time.min).replace(
+        tzinfo=timezone.utc
+    )
+    today_end = datetime.combine(datetime.now(timezone.utc).date(), time.max).replace(
+        tzinfo=timezone.utc
+    )
     output = []
     for link in links:
         # link_data = {
@@ -941,8 +948,19 @@ def link_analytics(current_user):
         #     "clicks": link.clicks,
         #     "conversions": link.conversions,
         # }
-        clicks = LinkClick.query.filter_by(tracked_link_id=link.id).all()
-        output.append({"name": link.destination_url, "value": len(clicks)})
+        clicks = LinkClick.query.filter_by(
+            tracked_link_id=link.id, created_at=datetime.today()
+        ).all()
+        click_count = (
+            db.session.query(func.count(LinkClick.id))
+            .filter(
+                LinkClick.tracked_link_id == link.id,
+                LinkClick.created_at >= today_start,
+                LinkClick.created_at <= today_end,
+            )
+            .scalar()
+        )
+        output.append({"name": link.destination_url, "value": click_count})
     return jsonify({"link_analytics": output}), 200
 
 
@@ -953,3 +971,22 @@ def weekly_reset():
         company.week_tally = 0
     db.session.commit()
     return jsonify({"message": "Weekly tallies reset."}), 200
+
+
+@app.route("/api/dashboard_stats", methods=["GET"])
+@token_required
+def dashboard_stats(current_user):
+    user = current_user
+    company = Company.query.filter_by(id=user.company_id).first()
+
+    count = (
+        db.session.query(func.count(LinkClick.id))
+        .join(TrackedLink, LinkClick.tracked_link_id == TrackedLink.id)
+        .filter(TrackedLink.company_id == company.id)
+        .scalar()
+    )  # .scalar() returns the first column of the first row (the integer)
+
+    return (
+        jsonify({"total_clicks": count, "total_messages": company.total_messages}),
+        200,
+    )

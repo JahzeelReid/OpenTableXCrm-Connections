@@ -24,7 +24,7 @@ export default function Analytics(props) {
   function getdata() {
     axios({
       method: "GET",
-      url: `${props.url}/api/linkanalytics`,
+      url: `${props.url}/api/todays_link_clicks`,
       headers: {
         Authorization: `Bearer ${token}`,
       },
