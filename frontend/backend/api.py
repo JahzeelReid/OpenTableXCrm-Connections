@@ -758,9 +758,10 @@ def schedule_posts():
     current_time = data.get("current_time")  # expected format: 0-3
 
     today = date.today()
+    cronjobname = f"schedule_posts_{current_time}"
 
     try:
-        db.session.add(CronLock(job_name="schedule_posts", run_date=today))
+        db.session.add(CronLock(job_name=cronjobname, run_date=today))
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
