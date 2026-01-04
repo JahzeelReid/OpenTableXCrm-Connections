@@ -60,7 +60,7 @@ export default function Login(props) {
         justifyContent: "center",
         alignItems: "center",
         minHeight: "100vh",
-        backgroundColor: "#f9fafb",
+        backgroundColor: "#0A0A0A",
       }}
     >
       <Card

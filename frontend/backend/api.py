@@ -336,7 +336,7 @@ def create_post(current_user):
     # query for the special link
     tracked_link = TrackedLink.query.filter_by(destination_url=destination_link).first()
     link = (
-        f"http://127.0.0.1:5000/t/{tracked_link.token}"
+        f"https://go.tabletextpro.com/t/{tracked_link.token}"
         if tracked_link
         else destination_link
     )
@@ -617,7 +617,7 @@ def send_scheduled_post(company, post):
     # query for the special link
     tracked_link = TrackedLink.query.filter_by(destination_url=destination_link).first()
     link = (
-        f"http://127.0.0.1:5000/t/{tracked_link.token}"
+        f"https://go.tabletextpro.com/t/{tracked_link.token}"
         if tracked_link
         else destination_link
     )
