@@ -86,7 +86,7 @@ CORS(
                 "http://localhost:5173",
                 "http://127.0.0.1:5173",
                 "https://opentablexcrm-connections-1.onrender.com",
-                "https://app.tabletextpro.com/",
+                "https://app.tabletextpro.com",
             ],
             "allow_headers": ["Content-Type", "Authorization"],
             "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
@@ -94,7 +94,16 @@ CORS(
     },
 )
 
-# CORS(app, resources={r"/*": {"origins": "*"}})
+# CORS(
+#     app,
+#     supports_credentials=True,
+#     resources={r"/*": {
+#         "origins": [
+#             "http://localhost:5173",
+#             "https://app.tabletextpro.com",
+#         ]
+#     }},
+# )
 
 
 def get_header(company):
