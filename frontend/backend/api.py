@@ -13,11 +13,13 @@ from templates import templates
 import boto3
 import json
 from extensions import db
-from datetime import datetime, timezone, timedelta, time
+from datetime import datetime, timezone, timedelta, time, date
 import base64
 import secrets
 import string
 from flask_cors import CORS
+from sqlalchemy.exc import IntegrityError
+from flask_migrate import Migrate
 
 
 # initialize the client with API key
@@ -43,6 +45,7 @@ class Base(DeclarativeBase):
 
 
 # db = SQLAlchemy(model_class=Base)
+migrate = Migrate()
 
 
 app = Flask(__name__)
@@ -58,7 +61,8 @@ app.config["SQLALCHEMY_DATABASE_URI"] = db_url
 app.config["SECRET_KEY"] = "your_super_secret_key_here"
 # initialize the app with the extension
 db.init_app(app)
-from model import Company, TrackedLink, User, Post, ScheduledPost, LinkClick
+migrate.init_app(app, db)
+from model import Company, CronLock, TrackedLink, User, Post, ScheduledPost, LinkClick
 
 BASE_URL = "https://rest.gohighlevel.com/v1"
 
@@ -752,6 +756,16 @@ def schedule_posts():
     data = request.get_json()
     # Retrieve the time from request data
     current_time = data.get("current_time")  # expected format: 0-3
+
+    today = date.today()
+
+    try:
+        db.session.add(CronLock(job_name="schedule_posts", run_date=today))
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({"status": "skipped", "reason": "already ran"}), 200
+
     weekday_number = datetime.today().weekday()  # 0-6 (Mon-Sun)
     # how to filter by companies that have posted
     companies = Company.query.all()

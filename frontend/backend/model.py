@@ -108,3 +108,11 @@ class LinkClick(db.Model):
     )
     ip_address: Mapped[str] = mapped_column(String(45))
     user_agent: Mapped[str] = mapped_column(Text)
+
+
+class CronLock(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    job_name = db.Column(db.String(50), nullable=False)
+    run_date = db.Column(db.Date, nullable=False)
+
+    __table_args__ = (db.UniqueConstraint("job_name", "run_date"),)
