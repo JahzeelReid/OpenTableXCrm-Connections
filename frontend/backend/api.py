@@ -794,7 +794,6 @@ def schedule_posts():
             continue
 
         # ----- Your posting logic goes here -----
-        send_scheduled_post(company, next_post)
         try:
             # Example: Your post-sending function
             send_scheduled_post(company, next_post)
