@@ -1,6 +1,6 @@
 credentials.json
 .env
-/venv
-/instance
+/venv/
+/instance/
 __pycache__/
 node_modules/
