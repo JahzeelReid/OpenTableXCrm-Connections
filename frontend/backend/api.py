@@ -20,6 +20,8 @@ import string
 from flask_cors import CORS
 from sqlalchemy.exc import IntegrityError
 from flask_migrate import Migrate
+import pytz
+from sqlalchemy import extract
 
 
 # initialize the client with API key
@@ -62,7 +64,16 @@ app.config["SECRET_KEY"] = "your_super_secret_key_here"
 # initialize the app with the extension
 db.init_app(app)
 migrate.init_app(app, db)
-from model import Company, CronLock, TrackedLink, User, Post, ScheduledPost, LinkClick
+from model import (
+    Company,
+    CronLock,
+    TestPost,
+    TrackedLink,
+    User,
+    Post,
+    ScheduledPost,
+    LinkClick,
+)
 
 BASE_URL = "https://rest.gohighlevel.com/v1"
 
@@ -1014,3 +1025,347 @@ def dashboard_stats(current_user):
         jsonify({"total_clicks": count, "total_messages": company.total_messages}),
         200,
     )
+
+
+@app.route("/api/generate_message", methods=["POST"])
+@token_required
+def generate_message(current_user):
+    data = request.get_json()
+    promotion = data.get("promotion")
+    info = data.get("info")  # this is a string now
+
+    company = Company.query.filter_by(id=current_user.company_id).first()
+    menu = company.menu
+    link = data.get("link")
+    print("link:", link, "promotion:", promotion, "info:", info)
+
+    # query for the special link
+    tracked_link = TrackedLink.query.filter_by(destination_url=link).first()
+    link = (
+        f"https://go.tabletextpro.com/t/{tracked_link.token}" if tracked_link else link
+    )
+
+    # print("data received at backend: ", content)
+    print("menu stored:", menu)
+    # image = data.get("image")
+    t = templates
+
+    # First, figure out which bucket of templates to use
+    t = templates[promotion]
+
+    # second, send only that bucket to ai to choose from
+    prompt = f"""
+        You are an assistant that helps restaurant owners send text messages to customers.
+        Choose the single most appropriate template based on the restaurant's provided info.
+        Return **only** the number of the template (1–{len(t)}), with no explanation or text.
+
+        Templates:
+        {chr(10).join([f"{i+1}. {t}" for i, t in enumerate(t)] )}
+
+        Info: {info}
+        """
+
+    response = client.responses.create(model="gpt-4o-mini", input=prompt)
+    # third, Parse response and send that template to contacts
+    print("ai response ", response.output_text)
+    # send info to ai
+
+    try:
+        template_index = int(response.output_text) - 1
+        selected_template = t[template_index]
+        print("selected template:", selected_template)
+    except (ValueError, IndexError):
+        raise ValueError(f"Invalid AI response: {response.output_text}")
+
+    data = {
+        "link": link,
+    }
+
+    # IF "ITEM" IS IN TEMPLATE, FEED TEMPLATE TO AI TO SELECT AN ITEM
+    if "{item}" in selected_template:
+        items_list = "\n".join(
+            [f"- {item['name']} ({item['price']})" for item in menu["items"]]
+        )
+
+        item_prompt = f"""
+            You are an assistant that helps restaurant owners send text messages to customers.
+            Choose the single most appropriate menu item based on the restaurant's chosen Text Template.
+            Similarly, Choose the most appropriate menu item based on the restaurant's provided info.
+            Return **only** the name of the item, with no explanation or text.
+
+            Menu Items:
+            {items_list}
+
+            Template: {selected_template}
+            Extra Info: {info}
+            """
+        item_response = client.responses.create(model="gpt-4o-mini", input=item_prompt)
+        item_name = item_response.output_text.strip()
+        print("item selected by ai:", item_name)
+
+        # find the item in the menu to get more details if needed
+        # item = next((itm for itm in items_list if itm["name"] == item_name), None)
+        item = next(
+            (itm for itm in menu["items"] if itm.get("name") == item_name), None
+        )
+
+        data["item"] = item_name
+        if not item:
+            raise ValueError(f"AI selected an invalid item: {item_name}")
+
+        # now replace {{item}} in template with item details
+
+    message = selected_template.format_map(SafeDict(data))
+
+    # pull all contacts from crm
+    # user = User.query.filter_by(id=user_id).first()
+    # print("contacts:", contacts)
+    return jsonify({"message": message}), 200
+
+
+@app.route("/api/schedule_post_new", methods=["POST"])
+@token_required
+def schedule_post_new(current_user):
+    data = request.get_json()
+    company = Company.query.filter_by(id=current_user.company_id).first()
+    content = data.get("content")
+    link = data.get("link")
+    scheduled_at = data.get("scheduled_at")
+    mode = data.get("mode")
+    promotion = data.get("promotion")
+    # This function will create a new post object
+    # the cron job will pick it up and post it at the scheduled time
+    scheduled_at_dt = datetime.fromisoformat(
+        scheduled_at.replace("Z", "+00:00")
+    ).astimezone(timezone.utc)
+
+    new_post = TestPost(
+        user_id=current_user.id,
+        company_id=company.id,
+        content=content,
+        link=link,
+        scheduled_at=scheduled_at_dt,
+        mode=mode,
+        promotion=promotion,
+    )
+    db.session.add(new_post)
+    db.session.flush()
+    print("New_post Id: ", new_post.id)
+    print("dscheduled time before saving: ", scheduled_at)
+    print("scheduled time after", new_post.scheduled_at)
+
+    db.session.commit()
+
+    # Validate and process the incoming data
+    # Schedule the post using the provided data
+    return jsonify({"message": "Post scheduled successfully"}), 200
+
+
+@app.route("/api/get_calendar_events", methods=["GET"])
+@token_required
+def get_calendar_events(current_user):
+    # data = request.get_json()
+    company = Company.query.filter_by(id=current_user.company_id).first()
+    # This function will fetch calendar events for the company
+    events = TestPost.query.filter_by(company_id=company.id).all()
+    output = []
+    for event in events:
+        print("Not.iso:", event.scheduled_at)
+        print("with.iso", event.scheduled_at.isoformat())
+
+        scheduled_at_utc = event.scheduled_at
+        if scheduled_at_utc.tzinfo is None:
+            # assume naive datetimes are UTC
+            scheduled_at_utc = scheduled_at_utc.replace(tzinfo=timezone.utc)
+        else:
+            # convert any timezone-aware datetime to UTC
+            scheduled_at_utc = scheduled_at_utc.astimezone(timezone.utc)
+
+        # Convert to ISO string with Z
+        scheduled_at_iso = scheduled_at_utc.isoformat().replace("+00:00", "Z")
+        print("final iso: ", scheduled_at_iso)
+        output.append(
+            {
+                "id": event.id,
+                "title": f"Promotion: {event.promotion}",
+                "start": scheduled_at_iso,
+                "extendedProps": {
+                    "content": event.content,
+                    "mode": event.mode,
+                    "link": event.link,
+                    "posted": event.posted,
+                    "status": event.status,
+                    "promotion": event.promotion,
+                    "scheduled_at": event.scheduled_at,
+                    # return it from a date time
+                },
+            }
+        )
+    return jsonify({"events": output}), 200
+
+
+def est_day_to_utc_range(day):
+    # day is a datetime.date
+    est = pytz.timezone("America/New_York")
+
+    est_start = est.localize(datetime.combine(day, time.min))
+    est_end = est.localize(datetime.combine(day, time.max))
+
+    return (
+        est_start.astimezone(pytz.UTC),
+        est_end.astimezone(pytz.UTC),
+    )
+
+
+@app.route("/api/send_mass_message", methods=["POST"])
+def send_mass_message():
+    data = request.get_json()
+    # Retrieve the time from request data
+    current_time = data.get("current_time")  # expected format: 0-3
+
+    today = date.today()
+    print("todays, ", today)
+    cronjobname = f"schedule_posts_{current_time}"
+    hour_times = [13, 17, 21, 1]
+
+    # try:
+    #     db.session.add(CronLock(job_name=cronjobname, run_date=today))
+    #     db.session.commit()
+    # except IntegrityError:
+    #     db.session.rollback()
+    #     return jsonify({"status": "skipped", "reason": "already ran"}), 200
+
+    # how to filter by companies that have posted
+    companies = Company.query.all()
+
+    results = []
+
+    start_utc, end_utc = est_day_to_utc_range(today)
+
+    for company in companies:
+        posts = TestPost.query.filter(
+            TestPost.company_id == company.id,
+            TestPost.scheduled_at >= start_utc,
+            TestPost.scheduled_at < end_utc,
+            extract("hour", TestPost.scheduled_at) == hour_times[current_time],
+        ).all()
+        if len(posts) == 0:
+            results.append({"company_id": company.id, "status": "no posts in queue"})
+            continue
+
+        for post in posts:
+            print(post.scheduled_at)
+            # ----- Your posting logic goes here -----
+            try:
+                # Example: Your post-sending function
+                send_scheduled_post_updated(company, post)
+
+                # Remove the processed post from the queue
+                # db.session.delete(next_post)
+                post.posted = True
+                company.week_tally += 1  # increment the week's post tally
+                db.session.commit()
+
+                results.append(
+                    {
+                        "company_id": company.id,
+                        "posted": post.promotion,
+                        "status": "success",
+                    }
+                )
+            except Exception as e:
+                db.session.rollback()
+                results.append(
+                    {"company_id": company.id, "error": str(e), "status": "failed"}
+                )
+
+    print("scheduling results:", results)
+    return jsonify({"results": results}), 200
+
+
+def send_scheduled_post_updated(company, post):
+    headers = get_header(company)
+    contacts = get_contacts_ghl(headers)
+    company.total_messages += len(contacts)
+    # print("contacts:", contacts)
+    for contact in contacts:
+        contact_id = contact["id"]
+        # send mms to each contact
+
+        data = {
+            "contact.first_name": contact["contact_first_name"],
+        }
+        message = post.content.format_map(SafeDict(data))
+
+        print("final message to send: ", message)
+        send_mms_ghl(contact_id, message, None, company)
+
+    post.posted = True
+    post.status = "posted"
+
+    # and send mms with image
+    new_post = Post(
+        user_id=0,
+        title="title",
+        content=post.content,
+        image_url=None,
+        company_id=company.id,
+    )
+    db.session.add(new_post)
+    db.session.commit()
+    return jsonify({"message": "Post created and messages sent!"}), 200
+
+
+@app.route("/api/update_scheduled_post", methods=["POST"])
+@token_required
+def update_scheduled_post(current_user):
+    data = request.get_json()
+    postID = data.get("id")
+    company = Company.query.filter_by(id=current_user.company_id).first()
+    content = data.get("content")
+    link = data.get("link")
+    scheduled_at = data.get("scheduled_at")
+    mode = data.get("mode")
+    promotion = data.get("promotion")
+    # This function will create a new post object
+    # the cron job will pick it up and post it at the scheduled time
+    scheduled_at_dt = datetime.fromisoformat(
+        scheduled_at.replace("Z", "+00:00")
+    ).astimezone(timezone.utc)
+
+    post = TestPost.query.filter_by(id=postID, company_id=company.id).first()
+    post.user_id = current_user.id
+    post.content = content
+    post.link = link
+    post.scheduled_at = scheduled_at_dt
+    post.mode = mode
+    post.promotion = promotion
+
+    db.session.commit()
+    return jsonify({"message": "Post Updated Successfully"}), 200
+
+
+@app.route("/api/delete_scheduled_post", methods=["POST"])
+@token_required
+def update_scheduled_post(current_user):
+    data = request.get_json()
+    postID = data.get("id")
+    company = Company.query.filter_by(id=current_user.company_id).first()
+    post = TestPost.query.filter_by(id=postID, company_id=company.id).first()
+    if not post:
+        return jsonify({"error": "Post not found"}), 404
+
+    db.session.delete(post)
+    db.session.commit()
+
+    return (
+        jsonify({"message": "Scheduled post deleted successfully", "id": postID}),
+        200,
+    )
+
+
+@app.route("/api/reset", methods=["GET"])
+def reset_db():
+    db.drop_all()
+    db.create_all()
+    return jsonify({"message": "Database reset successful"}), 200

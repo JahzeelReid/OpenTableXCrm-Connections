@@ -14,6 +14,7 @@ import React, { use, useEffect, useState } from "react";
 import { useContext } from "react";
 import { AuthContext } from "./authContext";
 import CircularProgress from "@mui/material/CircularProgress";
+import { useNavigate } from "react-router-dom";
 
 export default function PostEditor({
   open,
@@ -50,6 +51,7 @@ export default function PostEditor({
     "Loyalty / VIP Message",
   ];
   const { token, authReady } = useContext(AuthContext);
+  const navigate = useNavigate();
 
   useEffect(() => {
     setContent({

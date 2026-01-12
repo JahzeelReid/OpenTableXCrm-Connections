@@ -3,7 +3,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.orm.attributes import flag_modified
-from sqlalchemy import ForeignKey, Text, String
+from sqlalchemy import DateTime, ForeignKey, Text, String
 from datetime import datetime, timezone, timedelta
 import pytz
 
@@ -74,6 +74,55 @@ class Post(db.Model):
     # created_at: Mapped[datetime] = mapped_column(default=datetime.now)
     created_at: Mapped[datetime] = mapped_column(
         default=lambda: datetime.now(timezone.utc)
+    )
+
+
+class TestPost(db.Model):
+    posted: Mapped[bool] = mapped_column(default=False)
+
+    # --- Core identifiers ---
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+    company_id: Mapped[int] = mapped_column(
+        ForeignKey("company.id"), nullable=False, index=True
+    )
+
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("user.id"), nullable=False, index=True
+    )
+
+    # --- Post content ---
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    link: Mapped[str] = mapped_column(String(512), nullable=True)
+
+    # --- Scheduling ---
+    scheduled_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
+
+    posted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # --- Status & mode ---
+    status: Mapped[str] = mapped_column(
+        String(20),
+        default="scheduled",  # scheduled | posted | failed | cancelled
+        index=True,
+    )
+
+    mode: Mapped[str] = mapped_column(String(20), default="manual")  # manual | auto
+
+    # --- Auto-post metadata ---
+    promotion: Mapped[str] = mapped_column(String(255), nullable=True)
+
+    # --- Auditing ---
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
     )
 
 

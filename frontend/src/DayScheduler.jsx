@@ -23,6 +23,7 @@ import TopBanner from "./TopBanner";
 import PostEditor from "./Posteditor";
 import AddIcon from "@mui/icons-material/Add";
 import Sidebar from "./sidebar";
+import PostCalendar from "./Calender";
 
 const TOTAL_DAYS = 12;
 // Get tota; days from backend in future may change per company
@@ -247,15 +248,29 @@ export default function DayScheduler(props) {
     <>
       {/* <TopBanner /> */}
       <Sidebar />
-      <Box p={4}>
+      <Box
+        sx={{
+          // ml: { md: "240px" }, // offset for permanent drawer
+
+          width: "100%",
+          minWidth: 0, // IMPORTANT for flex/shrink issues
+          height: "100vh",
+          p: 4,
+        }}
+      >
+        <PostCalendar links={linklist.links} url={props.url} />
+      </Box>
+    </>
+  );
+}
+
+{
+  /*
+
+  <Box p={4}>
         <Typography variant="h5" gutterBottom>
           Days Scheduled
         </Typography>
-        {/* <LinearProgress
-        variant="determinate"
-        value={(scheduledCount / TOTAL_DAYS) * 100}
-        sx={{ mb: 4, height: 10, borderRadius: 5 }}
-      /> */}
         <Grid container spacing={2}>
           {days.map((day, index) => (
             <Grid item xs={12} sm={6} md={4} key={index} alignItems="stretch">
@@ -274,7 +289,7 @@ export default function DayScheduler(props) {
                     Promotion {index + 1}
                   </Typography>
 
-                  {/* Auto / Manual Radial Menu */}
+
                   <ToggleButtonGroup
                     value={day.mode}
                     exclusive
@@ -289,7 +304,7 @@ export default function DayScheduler(props) {
                     <ToggleButton value="manual">Manual</ToggleButton>
                   </ToggleButtonGroup>
 
-                  {/* Promotion Radial Menu (if Auto is selected) */}
+
                   {day.mode === "auto" && (
                     <>
                       <FormControl
@@ -409,6 +424,5 @@ export default function DayScheduler(props) {
           loading={loading}
         />
       </Box>
-    </>
-  );
+  */
 }

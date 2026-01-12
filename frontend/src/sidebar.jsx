@@ -11,11 +11,21 @@ import DashboardIcon from "@mui/icons-material/Dashboard";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import ViewModuleIcon from "@mui/icons-material/ViewModule";
 import SettingsIcon from "@mui/icons-material/Settings";
+import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";
 import { useNavigate } from "react-router-dom";
+
+import { useTheme, useMediaQuery } from "@mui/material";
+import { useState } from "react";
+import MenuIcon from "@mui/icons-material/Menu";
+import IconButton from "@mui/material/IconButton";
 
 const drawerWidth = 240;
 
 export default function Sidebar() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const [mobileOpen, setMobileOpen] = useState(false);
+
   const navigate = useNavigate();
 
   const navItemSx = {
@@ -34,83 +44,126 @@ export default function Sidebar() {
   };
 
   return (
-    <Drawer
-      variant="permanent"
-      sx={{
-        width: drawerWidth,
-        flexShrink: 0,
-        "& .MuiDrawer-paper": {
-          width: drawerWidth,
-          boxSizing: "border-box",
-          background: "linear-gradient(180deg, #0b0b0b 0%, #151515 100%)",
-          borderRight: "1px solid rgba(255, 215, 160, 0.08)",
-        },
-      }}
-    >
-      {/* Logo / Brand */}
-      <Box sx={{ px: 3, py: 4 }}>
-        <Typography
-          variant="h6"
+    // <Drawer
+    //   variant="permanent"
+    //   sx={{
+    //     width: drawerWidth,
+    //     flexShrink: 0,
+    //     "& .MuiDrawer-paper": {
+    //       width: drawerWidth,
+    //       boxSizing: "border-box",
+    //       background: "linear-gradient(180deg, #0b0b0b 0%, #151515 100%)",
+    //       borderRight: "1px solid rgba(255, 215, 160, 0.08)",
+    //     },
+    //   }}
+    <>
+      {isMobile && !mobileOpen && (
+        <IconButton
+          onClick={() => setMobileOpen(true)}
           sx={{
-            fontWeight: 600,
-            letterSpacing: "0.1em",
+            position: "fixed",
+            top: 12,
+            left: 12,
+            zIndex: (theme) => theme.zIndex.drawer + 2,
+            backgroundColor: "#0b0b0b",
             color: "#e6c37a",
+            "&:hover": {
+              backgroundColor: "#151515",
+            },
           }}
         >
-          TABLE TEXT
-        </Typography>
-        <Typography
-          sx={{
-            fontSize: "0.7rem",
-            letterSpacing: "0.3em",
-            color: "rgba(230, 195, 122, 0.6)",
-          }}
-        >
-          Pro
-        </Typography>
-      </Box>
-
-      {/* Navigation */}
-      <List>
-        <ListItemButton sx={navItemSx} onClick={() => navigate("/dashboard")}>
-          <ListItemIcon>
-            <DashboardIcon />
-          </ListItemIcon>
-          <ListItemText
-            primary="Dashboard"
-            primaryTypographyProps={{
-              fontSize: "0.9rem",
-              letterSpacing: "0.04em",
+          <MenuIcon />
+        </IconButton>
+      )}
+      <Drawer
+        variant={isMobile ? "temporary" : "permanent"}
+        open={isMobile ? mobileOpen : true}
+        onClose={() => setMobileOpen(false)}
+        ModalProps={{ keepMounted: true }} // better mobile performance
+        sx={{
+          width: drawerWidth,
+          flexShrink: 0,
+          "& .MuiDrawer-paper": {
+            width: drawerWidth,
+            boxSizing: "border-box",
+            background: "linear-gradient(180deg, #0b0b0b 0%, #151515 100%)",
+            borderRight: "1px solid rgba(255, 215, 160, 0.08)",
+          },
+        }}
+      >
+        {/* Logo / Brand */}
+        <Box sx={{ px: 3, py: 4 }}>
+          <Typography
+            variant="h6"
+            sx={{
+              fontWeight: 600,
+              letterSpacing: "0.1em",
+              color: "#e6c37a",
             }}
-          />
-        </ListItemButton>
+          >
+            TABLE TEXT
+          </Typography>
+          <Typography
+            sx={{
+              fontSize: "0.7rem",
+              letterSpacing: "0.3em",
+              color: "rgba(230, 195, 122, 0.6)",
+            }}
+          >
+            Pro
+          </Typography>
+        </Box>
 
-        <ListItemButton sx={navItemSx} onClick={() => navigate("/menu")}>
-          <ListItemIcon>
-            <AutoAwesomeIcon />
-          </ListItemIcon>
-          <ListItemText primary="Menu" />
-        </ListItemButton>
+        {/* Navigation */}
+        <List>
+          <ListItemButton sx={navItemSx} onClick={() => navigate("/dashboard")}>
+            <ListItemIcon>
+              <DashboardIcon />
+            </ListItemIcon>
+            <ListItemText
+              primary="Dashboard"
+              primaryTypographyProps={{
+                fontSize: "0.9rem",
+                letterSpacing: "0.04em",
+              }}
+            />
+          </ListItemButton>
 
-        <ListItemButton sx={navItemSx} onClick={() => navigate("/schedule")}>
-          <ListItemIcon>
-            <ViewModuleIcon />
-          </ListItemIcon>
-          <ListItemText primary="Schedule" />
-        </ListItemButton>
-      </List>
+          <ListItemButton sx={navItemSx} onClick={() => navigate("/menu")}>
+            <ListItemIcon>
+              <AutoAwesomeIcon />
+            </ListItemIcon>
+            <ListItemText primary="Menu" />
+          </ListItemButton>
 
-      {/* Bottom section */}
-      <Box sx={{ flexGrow: 1 }} />
+          <ListItemButton sx={navItemSx} onClick={() => navigate("/schedule")}>
+            <ListItemIcon>
+              <ViewModuleIcon />
+            </ListItemIcon>
+            <ListItemText primary="Schedule" />
+          </ListItemButton>
 
-      <List sx={{ mb: 2 }}>
-        <ListItemButton sx={navItemSx} onClick={() => navigate("/settings")}>
-          <ListItemIcon>
-            <SettingsIcon />
-          </ListItemIcon>
-          <ListItemText primary="Settings" />
-        </ListItemButton>
-      </List>
-    </Drawer>
+          <ListItemButton sx={navItemSx} onClick={() => navigate("/links")}>
+            <ListItemIcon>
+              {/* <ViewModuleIcon /> */}
+              <LinkOutlinedIcon />
+            </ListItemIcon>
+            <ListItemText primary="Links" />
+          </ListItemButton>
+        </List>
+
+        {/* Bottom section */}
+        <Box sx={{ flexGrow: 1 }} />
+
+        <List sx={{ mb: 2 }}>
+          <ListItemButton sx={navItemSx} onClick={() => navigate("/settings")}>
+            <ListItemIcon>
+              <SettingsIcon />
+            </ListItemIcon>
+            <ListItemText primary="Settings" />
+          </ListItemButton>
+        </List>
+      </Drawer>
+    </>
   );
 }

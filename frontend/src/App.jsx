@@ -11,6 +11,7 @@ import MenuUploader from "./MenuUploader";
 import { useContext, useEffect } from "react";
 import { AuthContext } from "./authContext";
 import { createTheme, ThemeProvider, CssBaseline } from "@mui/material";
+import LinkUploader from "./LinkSelecter";
 
 function App() {
   const [count, setCount] = useState(0);
@@ -66,6 +67,10 @@ function App() {
               element={<DayScheduler url={API_BASE_URL} />}
             />
             <Route path="/menu" element={<MenuUploader url={API_BASE_URL} />} />
+            <Route
+              path="/links"
+              element={<LinkUploader url={API_BASE_URL} />}
+            />
           </Routes>
         </Router>
       </ThemeProvider>

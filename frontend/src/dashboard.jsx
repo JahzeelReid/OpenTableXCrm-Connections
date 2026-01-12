@@ -157,7 +157,7 @@ export default function Dashboard(props) {
                 value: dashboardStats.total_messages,
               },
               { label: "TOTAL CLICKS", value: dashboardStats.total_clicks },
-              { label: "REVIEWS GENERATED", value: "120" },
+              // { label: "REVIEWS GENERATED", value: "120" },
             ].map((stat) => (
               <Grid item xs={12} md={4} key={stat.label}>
                 <Paper
@@ -169,7 +169,7 @@ export default function Dashboard(props) {
                     border: "1px solid rgba(255,255,255,0.05)", // Subtle definition
                   }}
                 >
-                  {stat.value ? (
+                  {stat.value !== null && stat.value !== undefined ? (
                     <Typography variant="h3" fontWeight="bold">
                       {stat.value}
                     </Typography>
