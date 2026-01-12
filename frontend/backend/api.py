@@ -1347,7 +1347,7 @@ def update_scheduled_post(current_user):
 
 @app.route("/api/delete_scheduled_post", methods=["POST"])
 @token_required
-def update_scheduled_post(current_user):
+def delete_scheduled_post(current_user):
     data = request.get_json()
     postID = data.get("id")
     company = Company.query.filter_by(id=current_user.company_id).first()
