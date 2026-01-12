@@ -609,7 +609,11 @@ def parse_menu():
         ],
     )
     print(
-        "ai response before", "Type: ", type(response.output_text), response.output_text
+        "ai response before",
+        "Type: ",
+        type(response.output_text),
+        response.output_text,
+        flush=True,
     )
     menu = json.loads(response.output_text)
 
