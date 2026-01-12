@@ -137,7 +137,7 @@ export default function MenuUploader(props) {
     formData.append("file", files[0]);
     axios({
       method: "POST",
-      url: `/api/parse_menu`,
+      url: `${props.url}/api/parse_menu`,
       data: formData,
       headers: {
         "Content-Type": "multipart/form-data",
@@ -347,114 +347,6 @@ export default function MenuUploader(props) {
           }
         >
           Save Menu
-        </Button>
-        {linklist?.links && (
-          <Box sx={{ mt: 4 }}>
-            <Typography variant="h6" gutterBottom>
-              Menu Items
-            </Typography>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr>
-                  <th
-                    style={{
-                      borderBottom: "1px solid #ccc",
-                      padding: "0.5rem",
-                    }}
-                  >
-                    Link
-                  </th>
-
-                  <th
-                    style={{
-                      borderBottom: "1px solid #ccc",
-                      padding: "0.5rem",
-                    }}
-                  >
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {linklist.links.map((link, i) => (
-                  <tr key={i}>
-                    <td
-                      style={{
-                        borderBottom: "1px solid #eee",
-                        padding: "0.5rem",
-                      }}
-                    >
-                      <input
-                        value={link}
-                        onChange={(e) => {
-                          const updated = linklist.links.map((item, idx) =>
-                            idx === i ? e.target.value : item
-                          );
-
-                          setLinkList({ links: updated });
-                        }}
-                        style={{ width: "100%" }}
-                      />
-                    </td>
-
-                    <td
-                      style={{
-                        borderBottom: "1px solid #eee",
-                        padding: "0.5rem",
-                      }}
-                    >
-                      <button
-                        onClick={() => {
-                          const updated = linklist.links.filter(
-                            (_, idx) => idx !== i
-                          );
-                          setLinkList({ links: updated });
-                        }}
-                        style={{
-                          background: "red",
-                          color: "white",
-                          border: "none",
-                          padding: "6px 10px",
-                          borderRadius: "6px",
-                          cursor: "pointer",
-                        }}
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Box>
-        )}
-
-        <button
-          onClick={() => {
-            setLinkList((prev) => ({
-              links: [...prev.links, ""],
-            }));
-          }}
-          style={{
-            marginTop: "12px",
-            background: "#1976d2",
-            color: "white",
-            border: "none",
-            padding: "8px 14px",
-            borderRadius: "6px",
-            cursor: "pointer",
-          }}
-        >
-          + Add Link
-        </button>
-        <Button
-          variant="contained"
-          color="success"
-          sx={{ mt: 2 }}
-          onClick={submitLinks}
-          disabled={!linklist.links || linklist.links.length === 0}
-        >
-          Save Links
         </Button>
       </Box>
     </>
