@@ -52,11 +52,19 @@ migrate = Migrate()
 
 app = Flask(__name__)
 # configure the SQLite database, relative to the app instance folder
-db_url = os.getenv("DATABASE_URL", "sqlite:///project.db")
+
+
+# db_url = os.getenv("DATABASE_URL", "sqlite:///project.db")
+# if db_url.startswith("postgres://"):
+#     db_url = db_url.replace(
+#         "postgres://", "postgresql://"
+#     )  # Render uses an outdated URI format
+
+db_url = os.getenv("DATABASE_URL")
+if not db_url:
+    raise RuntimeError("DATABASE_URL is not set")
 if db_url.startswith("postgres://"):
-    db_url = db_url.replace(
-        "postgres://", "postgresql://"
-    )  # Render uses an outdated URI format
+    db_url = db_url.replace("postgres://", "postgresql://")
 
 app.config["SQLALCHEMY_DATABASE_URI"] = db_url
 # app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///project.db"
