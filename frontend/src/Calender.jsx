@@ -65,7 +65,7 @@ export default function PostCalendar(props) {
 
   useEffect(() => {
     get_calendar_posts();
-  }, []);
+  }, [modalOpen]);
 
   return (
     <>

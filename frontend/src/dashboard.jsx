@@ -19,6 +19,7 @@ import { AuthContext } from "./authContext";
 import TopBanner from "./TopBanner";
 import Sidebar from "./sidebar";
 import CircularProgress from "@mui/material/CircularProgress";
+import PostModal from "./Modal";
 
 export default function Dashboard(props) {
   const [openEditor, setOpenEditor] = useState(false);
@@ -35,6 +36,9 @@ export default function Dashboard(props) {
     total_messages: null,
   });
   const [loading, setLoading] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedPost, setSelectedPost] = useState(null);
+  const [linklist, setLinkList] = useState({ links: [] });
 
   const handleSubmit = () => {
     console.log("Post content:", content);
@@ -117,11 +121,35 @@ export default function Dashboard(props) {
       });
   };
 
+  const getLinkList = () => {
+    axios({
+      method: "GET",
+      url: `${props.url}/api/get_tracked_links`,
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+      .then((response) => {
+        setLinkList(response.data);
+      })
+      .catch((error) => {
+        if (error.response && error.response.status === 401) {
+          console.warn("Session expired or invalid token.");
+          localStorage.removeItem("token"); // optional: clear stored token
+          navigate("/");
+        }
+        console.log(error.response);
+        console.log(error.response.status);
+        console.log(error.response.headers);
+      });
+  };
+
   useEffect(() => {
     if (!authReady) return;
     if (!token) return;
     check_company_state();
     fetchDashboardStats();
+    getLinkList();
   }, [authReady, token]);
 
   return (
@@ -214,7 +242,7 @@ export default function Dashboard(props) {
               <AddIcon />
             </Fab>
 
-            <PostEditor
+            {/* <PostEditor
               open={openEditor}
               onClose={() => setOpenEditor(false)}
               content={content}
@@ -223,6 +251,20 @@ export default function Dashboard(props) {
               handleSubmit={handleSubmit}
               url={props.url}
               loading={loading}
+            /> */}
+            <PostModal
+              open={openEditor}
+              onClose={() => setOpenEditor(false)}
+              selectedDate={selectedDate}
+              setSelectedDate={setSelectedDate}
+              setSelectedPost={setSelectedPost}
+              selectedPost={selectedPost}
+              onSave={(postData) => {
+                console.log("Save post:", postData);
+                // call API here
+              }}
+              links={linklist.links}
+              url={props.url}
             />
           </Grid>
         </Box>
