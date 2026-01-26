@@ -1323,7 +1323,17 @@ def send_mass_message():
     ).all()
     a = len(posts)
 
-    return jsonify({"results": results, "just_time": j, "scheduled": a}), 200
+    return (
+        jsonify(
+            {
+                "results": results,
+                "just_time": j,
+                "scheduled": a,
+                "server_times": [start_utc, end_utc],
+            }
+        ),
+        200,
+    )
 
 
 def send_scheduled_post_updated(company, post):
