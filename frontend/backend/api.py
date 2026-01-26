@@ -1285,6 +1285,7 @@ def send_mass_message():
         for post in posts:
             print("found post", post.scheduled_at)
             print("content: ", post.content)
+            print("time slot: ", post.time)
             # ----- Your posting logic goes here -----
             try:
                 # Example: Your post-sending function
@@ -1310,7 +1311,19 @@ def send_mass_message():
                 )
 
     print("scheduling results:", results)
-    return jsonify({"results": results}), 200
+    posts = TestPost.query.filter(
+        TestPost.company_id == company.id,
+        TestPost.time == current_time,
+    ).all()
+    j = len(posts)
+    posts = TestPost.query.filter(
+        TestPost.company_id == company.id,
+        TestPost.scheduled_at >= start_utc,
+        TestPost.scheduled_at < end_utc,
+    ).all()
+    a = len(posts)
+
+    return jsonify({"results": results, "just_time": j, "scheduled": a}), 200
 
 
 def send_scheduled_post_updated(company, post):
