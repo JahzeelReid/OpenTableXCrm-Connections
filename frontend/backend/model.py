@@ -124,6 +124,13 @@ class TestPost(db.Model):
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
+    time: Mapped[int] = mapped_column(
+        nullable=True
+    )  # 0-3 for morning 9, afternoon 12, evening 6, night 9/13, 17, 21, 1
+    # 0 = 13,
+    # 1 = 17,
+    # 2 = 21,
+    # 3 = 1
 
 
 class TrackedLink(db.Model):

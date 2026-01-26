@@ -12,6 +12,7 @@ import { useContext, useEffect } from "react";
 import { AuthContext } from "./authContext";
 import { createTheme, ThemeProvider, CssBaseline } from "@mui/material";
 import LinkUploader from "./LinkSelecter";
+import ConversationPage from "./ConvoPage";
 
 function App() {
   const [count, setCount] = useState(0);
@@ -70,6 +71,10 @@ function App() {
             <Route
               path="/links"
               element={<LinkUploader url={API_BASE_URL} />}
+            />
+            <Route
+              path="/conversations"
+              element={<ConversationPage url={API_BASE_URL} />}
             />
           </Routes>
         </Router>

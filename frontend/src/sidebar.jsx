@@ -18,6 +18,7 @@ import { useTheme, useMediaQuery } from "@mui/material";
 import { useState } from "react";
 import MenuIcon from "@mui/icons-material/Menu";
 import IconButton from "@mui/material/IconButton";
+import ForumIcon from "@mui/icons-material/Forum";
 
 const drawerWidth = 240;
 
@@ -141,6 +142,17 @@ export default function Sidebar() {
               <ViewModuleIcon />
             </ListItemIcon>
             <ListItemText primary="Schedule" />
+          </ListItemButton>
+
+          <ListItemButton
+            sx={navItemSx}
+            onClick={() => navigate("/conversations")}
+          >
+            <ListItemIcon>
+              {/* <ViewModuleIcon /> */}
+              <ForumIcon />
+            </ListItemIcon>
+            <ListItemText primary="Conversations" />
           </ListItemButton>
 
           <ListItemButton sx={navItemSx} onClick={() => navigate("/links")}>

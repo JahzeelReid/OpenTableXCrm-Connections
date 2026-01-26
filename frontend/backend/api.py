@@ -2,7 +2,7 @@
 from flask import Flask, request, jsonify, make_response, redirect
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy import JSON, Integer, String, func
+from sqlalchemy import JSON, Integer, String, func, insert
 from werkzeug.security import generate_password_hash, check_password_hash
 import jwt
 import uuid
@@ -22,6 +22,7 @@ from sqlalchemy.exc import IntegrityError
 from flask_migrate import Migrate
 import pytz
 from sqlalchemy import extract
+from collections import deque
 
 
 # initialize the client with API key
@@ -296,7 +297,7 @@ def send_mms_ghl(contact_id, message, image_url, company):
 
 
 def get_contacts_ghl(headers):
-    url = f"{BASE_URL}/contacts/"
+    # url = f"{BASE_URL}/contacts/"
     url = f"https://services.leadconnectorhq.com/contacts/"
 
     contacts = []
@@ -307,21 +308,21 @@ def get_contacts_ghl(headers):
         params = {"limit": limit, "page": page, "locationId": "SAMRMXK1dqFwzEIFsOND"}
         response = requests.get(url, headers=headers, params=params)
         data = response.json()
-        print("data:", data)
+        # print("data:", data)
 
         if "contacts" not in data or not data["contacts"]:
             break
 
         contacts.extend(data["contacts"])
-        print(f"Fetched page {page} ({len(data['contacts'])} contacts)")
+        # print(f"Fetched page {page} ({len(data['contacts'])} contacts)")
         page += 1
 
-    print(f"✅ Total contacts pulled: {len(contacts)}")
+    # print(f"✅ Total contacts pulled: {len(contacts)}")
     real_contacts = []
     for contact in contacts:
         url = f"https://services.leadconnectorhq.com/contacts/{contact['id']}"
         response = requests.get(url, headers=headers, params=params)
-        print("contact details response:", response.json())
+        # print("contact details response:", response.json())
         try:
             contact["contact_first_name"] = response.json()["contact"]["firstName"]
             real_contacts.append(contact)
@@ -1151,6 +1152,21 @@ def schedule_post_new(current_user):
         scheduled_at.replace("Z", "+00:00")
     ).astimezone(timezone.utc)
 
+    if "T13" in scheduled_at:
+        # 8am EST
+        time = 0
+    elif "T17" in scheduled_at:
+        # 12pm EST
+        time = 1
+    elif "T21" in scheduled_at:
+        # 4pm EST
+        time = 2
+    elif "T01" in scheduled_at:
+        # 8pm EST
+        time = 3
+
+    print("scheduled at time slot: ", time)
+
     new_post = TestPost(
         user_id=current_user.id,
         company_id=company.id,
@@ -1159,6 +1175,7 @@ def schedule_post_new(current_user):
         scheduled_at=scheduled_at_dt,
         mode=mode,
         promotion=promotion,
+        time=time,
     )
     db.session.add(new_post)
     db.session.flush()
@@ -1182,8 +1199,8 @@ def get_calendar_events(current_user):
     events = TestPost.query.filter_by(company_id=company.id).all()
     output = []
     for event in events:
-        print("Not.iso:", event.scheduled_at)
-        print("with.iso", event.scheduled_at.isoformat())
+        # print("Not.iso:", event.scheduled_at)
+        # print("with.iso", event.scheduled_at.isoformat())
 
         scheduled_at_utc = event.scheduled_at
         if scheduled_at_utc.tzinfo is None:
@@ -1249,7 +1266,6 @@ def send_mass_message():
 
     # how to filter by companies that have posted
     companies = Company.query.all()
-
     results = []
 
     start_utc, end_utc = est_day_to_utc_range(today)
@@ -1259,14 +1275,16 @@ def send_mass_message():
             TestPost.company_id == company.id,
             TestPost.scheduled_at >= start_utc,
             TestPost.scheduled_at < end_utc,
-            extract("hour", TestPost.scheduled_at) == hour_times[current_time],
+            TestPost.time == current_time,
+            # extract("hour", TestPost.scheduled_at) == hour_times[current_time],
         ).all()
         if len(posts) == 0:
             results.append({"company_id": company.id, "status": "no posts in queue"})
             continue
 
         for post in posts:
-            print(post.scheduled_at)
+            print("found post", post.scheduled_at)
+            print("content: ", post.content)
             # ----- Your posting logic goes here -----
             try:
                 # Example: Your post-sending function
@@ -1345,6 +1363,19 @@ def update_scheduled_post(current_user):
         scheduled_at.replace("Z", "+00:00")
     ).astimezone(timezone.utc)
 
+    if "T13" in scheduled_at:
+        # 8am EST
+        time = 0
+    elif "T17" in scheduled_at:
+        # 12pm EST
+        time = 1
+    elif "T21" in scheduled_at:
+        # 4pm EST
+        time = 2
+    elif "T01" in scheduled_at:
+        # 8pm EST
+        time = 3
+
     post = TestPost.query.filter_by(id=postID, company_id=company.id).first()
     post.user_id = current_user.id
     post.content = content
@@ -1352,6 +1383,7 @@ def update_scheduled_post(current_user):
     post.scheduled_at = scheduled_at_dt
     post.mode = mode
     post.promotion = promotion
+    post.time = time
 
     db.session.commit()
     return jsonify({"message": "Post Updated Successfully"}), 200
@@ -1381,3 +1413,81 @@ def reset_db():
     db.drop_all()
     db.create_all()
     return jsonify({"message": "Database reset successful"}), 200
+
+
+@app.route("/api/get_all_convos", methods=["GET"])
+@token_required
+def get_all_convos(current_user):
+    company = Company.query.filter_by(id=current_user.company_id).first()
+    parsed_convo_list = []
+    headers = get_header(company)
+    # GET /conversations/?contactId={CONTACT_ID}
+    url = f"https://services.leadconnectorhq.com/conversations/search"
+    params = {"limit": 100, "page": 1, "locationId": company.location_id}
+    response = requests.get(url, headers=headers, params=params)
+    search = response.json()
+
+    for convo in search.get("conversations"):
+        parsed_convo = {
+            "id": convo["id"],
+            "name": convo["contactName"],
+            "preview": convo["lastMessageBody"],
+            "time": "Test",
+            "messages": [],
+            "contact_id": convo["contactId"],
+        }
+
+        print(
+            "Convo ID: ",
+            convo["id"],
+            "\nlastMessage: ",
+            convo["lastMessageBody"],
+            "\ncontactName: ",
+            convo["contactName"],
+        )
+        print("---Messages--")
+        url = (
+            f"https://services.leadconnectorhq.com/conversations/{convo['id']}/messages"
+        )
+        response = requests.get(url, headers=headers, params=params)
+        messages = response.json()
+        # print("Messages: ", messages)
+        for message in reversed(messages.get("messages")["messages"]):
+            try:
+                print(f"{message["direction"]}: {message["body"]}\n")
+                parsed_convo["messages"].append(
+                    {
+                        "sender": (
+                            "them" if message["direction"] == "inbound" else "me"
+                        ),
+                        "text": message["body"],
+                        "id": message["id"],
+                    }
+                )
+            except Exception as e:
+                print("Error processing message:", e)
+        parsed_convo_list.append(parsed_convo)
+    return (
+        jsonify(
+            {"message": "Conversations fetched", "conversations": parsed_convo_list}
+        ),
+        200,
+    )
+
+
+@app.route("/api/manual_message", methods=["POST"])
+@token_required
+def manual_message(current_user):
+    data = request.get_json()
+    company = Company.query.filter_by(id=current_user.company_id).first()
+    contact_id = data.get("contact_id")
+    message_body = data.get("message")
+
+    response = send_mms_ghl(contact_id, message_body, None, company)
+    print("manual message response:", response)
+
+    # if response.status_code == 200:
+    #     return jsonify({"message": "Message sent successfully"}), 200
+    # else:
+    #     return jsonify({"error": "Failed to send message"}), 500
+    return jsonify({"message": "Message sent successfully"}), 200
