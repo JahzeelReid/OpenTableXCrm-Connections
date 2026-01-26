@@ -22,7 +22,7 @@ from sqlalchemy.exc import IntegrityError
 from flask_migrate import Migrate
 import pytz
 from sqlalchemy import extract
-from collections import deque
+from zoneinfo import ZoneInfo
 
 
 # initialize the client with API key
@@ -1252,7 +1252,10 @@ def send_mass_message():
     # Retrieve the time from request data
     current_time = data.get("current_time")  # expected format: 0-3
 
-    today = date.today()
+    est = ZoneInfo("America/New_York")
+    today = datetime.now(est).date()
+
+    # today = date.today()
     print("todays, ", today)
     cronjobname = f"schedule_posts_{current_time}"
     hour_times = [13, 17, 21, 1]
