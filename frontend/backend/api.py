@@ -1362,7 +1362,7 @@ def send_scheduled_post_updated(company, post):
 
     # and send mms with image
     new_post = Post(
-        user_id=0,
+        user_id=1,
         title="title",
         content=post.content,
         image_url=None,
