@@ -1329,7 +1329,8 @@ def send_mass_message():
                 "results": results,
                 "just_time": j,
                 "scheduled": a,
-                "server_times": [start_utc, end_utc],
+                "start": start_utc,
+                "End": end_utc,
             }
         ),
         200,
