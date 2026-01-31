@@ -96,7 +96,25 @@ export default function PostList(props) {
         Previous Posts
       </Typography>
       {formattedPosts.map((post, index) => (
-        <Card key={index} sx={{ mb: 2, position: "relative" }}>
+        <Card
+          key={index}
+          sx={{
+            mb: 2,
+            position: "relative",
+            boxShadow: `
+                      0 1px 0 rgba(255,255,255,0.06),
+                      0 10px 5px rgba(0,0,0,0.75)`,
+
+            transition: "all 0.25s ease",
+            "&:hover": {
+              transform: "translateY(-3px)",
+              boxShadow: `
+                      0 1px 0 rgba(255,255,255,0.08),
+                      0 15px 20px rgba(0,0,0,0.85)
+                    `,
+            },
+          }}
+        >
           <CardContent>
             <Typography
               variant="caption"

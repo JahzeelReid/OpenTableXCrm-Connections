@@ -195,6 +195,18 @@ export default function Dashboard(props) {
                     bgcolor: "background.paper",
                     borderRadius: 4,
                     border: "1px solid rgba(255,255,255,0.05)", // Subtle definition
+                    boxShadow: `
+                      0 1px 0 rgba(255,255,255,0.06),
+                      0 14px 10px rgba(0,0,0,0.75)`,
+
+                    transition: "all 0.25s ease",
+                    "&:hover": {
+                      transform: "translateY(-3px)",
+                      boxShadow: `
+                      0 1px 0 rgba(255,255,255,0.08),
+                      0 20px 25px rgba(0,0,0,0.85)
+                    `,
+                    },
                   }}
                 >
                   {stat.value !== null && stat.value !== undefined ? (

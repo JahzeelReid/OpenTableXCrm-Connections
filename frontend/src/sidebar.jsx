@@ -12,13 +12,13 @@ import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import ViewModuleIcon from "@mui/icons-material/ViewModule";
 import SettingsIcon from "@mui/icons-material/Settings";
 import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";
-import { useNavigate } from "react-router-dom";
 
 import { useTheme, useMediaQuery } from "@mui/material";
 import { useState } from "react";
 import MenuIcon from "@mui/icons-material/Menu";
 import IconButton from "@mui/material/IconButton";
 import ForumIcon from "@mui/icons-material/Forum";
+import { useLocation, useNavigate } from "react-router-dom";
 
 const drawerWidth = 240;
 
@@ -28,6 +28,7 @@ export default function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const navigate = useNavigate();
+  const location = useLocation();
 
   const navItemSx = {
     borderRadius: "12px",
@@ -41,6 +42,30 @@ export default function Sidebar() {
     },
     "&:hover": {
       backgroundColor: "rgba(216, 184, 106, 0.12)",
+    },
+    "&.Mui-selected": {
+      backgroundColor: "rgba(216, 184, 106, 0.2)", // A bit more opaque
+      // boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.3)", // The shadow you wanted/
+      border: "1px solid rgba(216, 184, 106, 0.3)", // Subtle border
+      "& .MuiTypography-root": {
+        fontWeight: "bold", // Make text pop
+      },
+      // "&:hover": {
+      //   backgroundColor: "rgba(216, 184, 106, 0.3)", // Darker on hover even when selected
+      // },
+
+      boxShadow: `
+                      0 1px 0 rgba(255,255,255,0.06),
+                      0 10px 5px rgba(0,0,0,0.75)`,
+
+      transition: "all 0.25s ease",
+      "&:hover": {
+        transform: "translateY(-3px)",
+        boxShadow: `
+                      0 1px 0 rgba(255,255,255,0.08),
+                      0 15px 20px rgba(0,0,0,0.85)
+                    `,
+      },
     },
   };
 
@@ -117,7 +142,11 @@ export default function Sidebar() {
 
         {/* Navigation */}
         <List>
-          <ListItemButton sx={navItemSx} onClick={() => navigate("/dashboard")}>
+          <ListItemButton
+            sx={navItemSx}
+            onClick={() => navigate("/dashboard")}
+            selected={location.pathname === "/dashboard"}
+          >
             <ListItemIcon>
               <DashboardIcon />
             </ListItemIcon>
@@ -130,14 +159,22 @@ export default function Sidebar() {
             />
           </ListItemButton>
 
-          <ListItemButton sx={navItemSx} onClick={() => navigate("/menu")}>
+          <ListItemButton
+            sx={navItemSx}
+            onClick={() => navigate("/menu")}
+            selected={location.pathname === "/menu"}
+          >
             <ListItemIcon>
               <AutoAwesomeIcon />
             </ListItemIcon>
             <ListItemText primary="Menu" />
           </ListItemButton>
 
-          <ListItemButton sx={navItemSx} onClick={() => navigate("/schedule")}>
+          <ListItemButton
+            sx={navItemSx}
+            onClick={() => navigate("/schedule")}
+            selected={location.pathname === "/schedule"}
+          >
             <ListItemIcon>
               <ViewModuleIcon />
             </ListItemIcon>
@@ -147,6 +184,7 @@ export default function Sidebar() {
           <ListItemButton
             sx={navItemSx}
             onClick={() => navigate("/conversations")}
+            selected={location.pathname === "/conversations"}
           >
             <ListItemIcon>
               {/* <ViewModuleIcon /> */}
@@ -155,7 +193,11 @@ export default function Sidebar() {
             <ListItemText primary="Conversations" />
           </ListItemButton>
 
-          <ListItemButton sx={navItemSx} onClick={() => navigate("/links")}>
+          <ListItemButton
+            sx={navItemSx}
+            onClick={() => navigate("/links")}
+            selected={location.pathname === "/links"}
+          >
             <ListItemIcon>
               {/* <ViewModuleIcon /> */}
               <LinkOutlinedIcon />
@@ -168,7 +210,11 @@ export default function Sidebar() {
         <Box sx={{ flexGrow: 1 }} />
 
         <List sx={{ mb: 2 }}>
-          <ListItemButton sx={navItemSx} onClick={() => navigate("/settings")}>
+          <ListItemButton
+            sx={navItemSx}
+            onClick={() => navigate("/settings")}
+            selected={location.pathname === "/settings"}
+          >
             <ListItemIcon>
               <SettingsIcon />
             </ListItemIcon>

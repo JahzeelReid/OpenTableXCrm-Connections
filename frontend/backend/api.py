@@ -23,6 +23,7 @@ from flask_migrate import Migrate
 import pytz
 from sqlalchemy import extract
 from zoneinfo import ZoneInfo
+from collections import defaultdict
 
 
 # initialize the client with API key
@@ -1010,6 +1011,214 @@ def link_analytics(current_user):
         )
         output.append({"name": link.destination_url, "value": click_count})
     return jsonify({"link_analytics": output}), 200
+
+
+def start_of_week(dt):
+    # Monday as start of week
+    return dt - timedelta(days=dt.weekday())
+
+
+@app.route("/api/todays_clicks_timeseries", methods=["GET", "POST"])
+# @token_required
+def todays_clicks_timeseries():
+    # company_id = current_user.company_id'
+    company_id = 1  # for testing
+    data = request.get_json()
+    reach = data.get("range")
+    if reach == "today":
+
+        # Start & end of today (UTC)
+        today = datetime.now(timezone.utc).date()
+        today_start = datetime.combine(today, time.min, tzinfo=timezone.utc)
+        today_end = datetime.combine(today, time.max, tzinfo=timezone.utc)
+
+        # Get all tracked links for this company
+        links = TrackedLink.query.filter_by(company_id=company_id).all()
+
+        # Build 2-hour buckets
+        bucket_starts = []
+        current = today_start
+        while current <= today_end:
+            bucket_starts.append(current)
+            current += timedelta(hours=2)
+
+        labels = [dt.strftime("%H:%M") for dt in bucket_starts]
+
+        # Fetch all clicks for today in ONE query
+        clicks = (
+            db.session.query(
+                LinkClick.tracked_link_id,
+                LinkClick.created_at,
+            )
+            .join(TrackedLink, TrackedLink.id == LinkClick.tracked_link_id)
+            .filter(
+                TrackedLink.company_id == company_id,
+                LinkClick.created_at >= today_start,
+                LinkClick.created_at <= today_end,
+            )
+            .all()
+        )
+
+        # { link_id: [0, 0, 0, ...] }
+        link_buckets = {link.id: [0] * len(bucket_starts) for link in links}
+
+        # Place each click into the correct 2-hour bucket
+        for link_id, created_at in clicks:
+
+            # bucket_index = int((created_at - today_start).total_seconds() // (2 * 3600))
+            if created_at.tzinfo is None:
+                created_at = created_at.replace(tzinfo=timezone.utc)
+
+            bucket_index = int((created_at - today_start).total_seconds() // (2 * 3600))
+
+            if 0 <= bucket_index < len(bucket_starts):
+                link_buckets[link_id][bucket_index] += 1
+
+        # Accumulate counts per link
+        series = []
+        for link in links:
+            running_total = 0
+            cumulative = []
+            for count in link_buckets[link.id]:
+                running_total += count
+                cumulative.append(running_total)
+
+            series.append(
+                {
+                    "id": link.id,
+                    "name": link.destination_url,
+                    "data": cumulative,
+                }
+            )
+    elif reach == "week":
+        today = datetime.now(timezone.utc).date()
+        start_date = today - timedelta(days=6)  # includes today
+
+        # Build day buckets
+        day_starts = [
+            datetime.combine(
+                start_date + timedelta(days=i), time.min, tzinfo=timezone.utc
+            )
+            for i in range(7)
+        ]
+
+        labels = [(start_date + timedelta(days=i)).isoformat() for i in range(7)]
+
+        # Get links
+        links = TrackedLink.query.filter_by(company_id=company_id).all()
+
+        # Fetch clicks for the full 7-day window
+        clicks = (
+            db.session.query(
+                LinkClick.tracked_link_id,
+                LinkClick.created_at,
+            )
+            .join(TrackedLink, TrackedLink.id == LinkClick.tracked_link_id)
+            .filter(
+                TrackedLink.company_id == company_id,
+                LinkClick.created_at >= day_starts[0],
+                LinkClick.created_at < day_starts[-1] + timedelta(days=1),
+            )
+            .all()
+        )
+
+        # Initialize buckets
+        link_buckets = {link.id: [0] * 7 for link in links}
+
+        # Bucket clicks by day
+        for link_id, created_at in clicks:
+            if created_at.tzinfo is None:
+                created_at = created_at.replace(tzinfo=timezone.utc)
+
+            day_index = (created_at.date() - start_date).days
+            if 0 <= day_index < 7:
+                link_buckets[link_id][day_index] += 1
+
+        # Accumulate per link
+        series = []
+        for link in links:
+            running_total = 0
+            cumulative = []
+
+            for count in link_buckets[link.id]:
+                running_total += count
+                cumulative.append(running_total)
+
+            series.append(
+                {
+                    "id": link.id,
+                    "name": link.destination_url,
+                    "data": cumulative,
+                }
+            )
+    elif reach == "month":
+        now = datetime.now(timezone.utc)
+        this_week_start = start_of_week(now).replace(
+            hour=0, minute=0, second=0, microsecond=0, tzinfo=timezone.utc
+        )
+
+        # Build 12 weekly buckets (oldest → newest)
+        week_starts = [this_week_start - timedelta(weeks=11 - i) for i in range(12)]
+
+        labels = [ws.date().isoformat() for ws in week_starts]
+
+        links = TrackedLink.query.filter_by(company_id=company_id).all()
+
+        # Fetch clicks for the full 12-week window
+        clicks = (
+            db.session.query(
+                LinkClick.tracked_link_id,
+                LinkClick.created_at,
+            )
+            .join(TrackedLink, TrackedLink.id == LinkClick.tracked_link_id)
+            .filter(
+                TrackedLink.company_id == company_id,
+                LinkClick.created_at >= week_starts[0],
+                LinkClick.created_at < this_week_start + timedelta(weeks=1),
+            )
+            .all()
+        )
+
+        # Initialize buckets
+        link_buckets = {link.id: [0] * 12 for link in links}
+
+        # Bucket clicks into weeks
+        for link_id, created_at in clicks:
+            if created_at.tzinfo is None:
+                created_at = created_at.replace(tzinfo=timezone.utc)
+
+            week_index = (start_of_week(created_at) - week_starts[0]).days // 7
+
+            if 0 <= week_index < 12:
+                link_buckets[link_id][week_index] += 1
+
+        # Accumulate per link
+        series = []
+        for link in links:
+            running_total = 0
+            cumulative = []
+
+            for count in link_buckets[link.id]:
+                running_total += count
+                cumulative.append(running_total)
+
+            series.append(
+                {
+                    "id": link.id,
+                    "name": link.destination_url,
+                    "data": cumulative,
+                }
+            )
+
+    return (
+        jsonify(
+            {
+                "labels": labels,
+                "series": series,
+            }
+        ),
+        200,
+    )
 
 
 @app.route("/api/weekly_reset", methods=["POST"])
