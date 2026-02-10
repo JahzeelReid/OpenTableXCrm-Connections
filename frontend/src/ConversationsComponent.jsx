@@ -153,8 +153,12 @@ export default function ConversationsPage(props) {
                     fontSize: "0.8rem",
                   }}
                 />
+
                 <Typography variant="caption" sx={{ color: "#555", ml: 1 }}>
-                  {c.time}
+                  {new Date(c.time).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
                 </Typography>
               </ListItem>
               <Divider sx={{ borderColor: "rgba(255,255,255,0.05)", mx: 2 }} />
@@ -220,20 +224,47 @@ export default function ConversationsPage(props) {
             <Box
               key={msg.id}
               sx={{
-                alignSelf: msg.sender === "me" ? "flex-end" : "flex-start",
-                bgcolor: msg.sender === "me" ? "#c9a45c" : "#2a2a2a",
-                color: msg.sender === "me" ? "#000" : "#fff",
-                p: 1.5,
-                px: 2,
-                borderRadius:
-                  msg.sender === "me"
-                    ? "18px 18px 4px 18px"
-                    : "18px 18px 18px 4px",
-                maxWidth: isMobile ? "85%" : "70%",
-                boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: msg.sender === "me" ? "flex-end" : "flex-start",
+                mb: 1, // Restores your tight vertical spacing
+                "&:hover .message-time": { display: "block" }, // Renders it on hover
               }}
             >
-              <Typography variant="body2">{msg.text}</Typography>
+              <Box
+                sx={{
+                  alignSelf: msg.sender === "me" ? "flex-end" : "flex-start",
+                  bgcolor: msg.sender === "me" ? "#c9a45c" : "#2a2a2a",
+                  color: msg.sender === "me" ? "#000" : "#fff",
+                  p: 1.5,
+                  px: 2,
+                  borderRadius:
+                    msg.sender === "me"
+                      ? "18px 18px 4px 18px"
+                      : "18px 18px 18px 4px",
+                  maxWidth: isMobile ? "85%" : "70%",
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                }}
+              >
+                <Typography variant="body2">{msg.text}</Typography>
+              </Box>
+
+              <Typography
+                className="message-time"
+                variant="caption"
+                sx={{
+                  display: "none", // Completely unrendered by default
+                  color: "#888",
+                  mt: 0.5,
+                  mx: 1,
+                  fontSize: "0.7rem",
+                }}
+              >
+                {new Date(msg.time).toLocaleTimeString([], {
+                  hour: "numeric",
+                  minute: "2-digit",
+                })}
+              </Typography>
             </Box>
           ))}
           <div ref={messagesEndRef} />

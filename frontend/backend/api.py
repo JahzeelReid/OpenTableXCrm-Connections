@@ -1690,7 +1690,9 @@ def get_all_convos(current_user):
         # print("Messages: ", messages)
         for message in reversed(messages.get("messages")["messages"]):
             try:
-                print(f"{message["direction"]}: {message["body"]}\n")
+                print(
+                    f"{message["direction"]}: {message["body"]} time: {message["dateAdded"]}\n"
+                )
                 parsed_convo["messages"].append(
                     {
                         "sender": (
@@ -1698,10 +1700,12 @@ def get_all_convos(current_user):
                         ),
                         "text": message["body"],
                         "id": message["id"],
+                        "time": message["dateAdded"],
                     }
                 )
             except Exception as e:
                 print("Error processing message:", e)
+        parsed_convo["time"] = messages.get("messages")["messages"][0]["dateAdded"]
         parsed_convo_list.append(parsed_convo)
     return (
         jsonify(
