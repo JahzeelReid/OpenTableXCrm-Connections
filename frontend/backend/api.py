@@ -1,4 +1,4 @@
-# import time
+import time as time_module
 from flask import Flask, request, jsonify, make_response, redirect
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
@@ -1731,3 +1731,113 @@ def manual_message(current_user):
     # else:
     #     return jsonify({"error": "Failed to send message"}), 500
     return jsonify({"message": "Message sent successfully"}), 200
+
+
+# @app.route("/api/import-contacts", methods=["POST"])
+# @token_required
+# def import_contacts(current_user):
+#     data = request.get_json()
+#     company = Company.query.filter_by(id=current_user.company_id).first()
+#     contacts = data.get("contacts", [])
+#     print("Data: ", data)
+#     # Iterate throught the contact list and send to GHL
+#     headers = get_header(company)
+#     url = "https://services.leadconnectorhq.com/contacts/upsert"
+#     for contact in contacts:
+#         payload = {
+#             "firstName": contact.get("first_name"),
+#             "lastName": contact.get("last_name"),
+#             "phone": contact.get("phone"),
+#             "locationId": company.location_id,
+#         }
+#         response = requests.post(url, headers=headers, json=payload)
+#         print(f"Importing contact {contact.get('first_name')} {contact.get('last_name')}: {response.status_code}")
+
+
+#     return jsonify({"message": "Contacts imported successfully"}), 200
+
+
+@app.route("/api/import-contacts", methods=["POST"])
+@token_required
+def import_contacts(current_user):
+    data = request.get_json()
+    company = Company.query.filter_by(id=current_user.company_id).first()
+    contacts = data.get("contacts", [])
+    print("Data: ", data)
+
+    headers = get_header(company)
+    url = "https://services.leadconnectorhq.com/contacts/upsert"
+
+    results = []
+    success_count = 0
+
+    for contact in contacts:
+        # 1. Strip everything except digits
+        raw_phone = str(contact.get("phone", ""))
+        digits = "".join(filter(str.isdigit, raw_phone))
+
+        # 2. Normalize based on length
+        if len(digits) == 10:
+            # Assumes US/Canada: 5551112222 -> +15551112222
+            phone_payload = f"+1{digits}"
+        elif len(digits) > 10 and not raw_phone.startswith("+"):
+            # If it's 11+ digits and no plus, just add the plus
+            phone_payload = f"+{digits}"
+        else:
+            # If it's already +1555..., use as is
+            phone_payload = raw_phone if raw_phone.startswith("+") else f"+{digits}"
+
+        payload = {
+            "firstName": contact.get("first_name"),
+            "lastName": contact.get("last_name"),
+            "phone": phone_payload,
+            "locationId": company.location_id,
+        }
+
+        try:
+            response = requests.post(url, headers=headers, json=payload)
+            resp_data = response.json() if response.content else {}
+
+            if response.status_code in [200, 201]:
+                success_count += 1
+                results.append(
+                    {
+                        "status": "success",
+                        "contact": f"{payload['firstName']} {payload['lastName']}",
+                        "ghl_id": resp_data.get("contact", {}).get("id"),
+                        "is_new": resp_data.get("new", False),
+                    }
+                )
+            else:
+                results.append(
+                    {
+                        "status": "failed",
+                        "contact": f"{payload['firstName']} {payload['lastName']}",
+                        "error": resp_data.get("message", "Unknown error"),
+                        "code": response.status_code,
+                    }
+                )
+
+        except Exception as e:
+            results.append(
+                {
+                    "status": "error",
+                    "contact": f"{contact.get('first_name')}",
+                    "error": str(e),
+                }
+            )
+
+        # Small delay to respect GHL rate limits (approx 10 requests per second)
+        time_module.sleep(0.1)
+
+    return (
+        jsonify(
+            {
+                "message": f"Processed {len(contacts)} contacts",
+                "total_attempted": len(contacts),
+                "success_count": success_count,
+                "details": results,
+            }
+        ),
+        200,
+    )

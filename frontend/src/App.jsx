@@ -13,6 +13,8 @@ import { AuthContext } from "./authContext";
 import { createTheme, ThemeProvider, CssBaseline } from "@mui/material";
 import LinkUploader from "./LinkSelecter";
 import ConversationPage from "./ConvoPage";
+import ContactImporter from "./ImportContacts";
+import SettingsPage from "./Settings";
 
 function App() {
   const [count, setCount] = useState(0);
@@ -75,6 +77,10 @@ function App() {
             <Route
               path="/conversations"
               element={<ConversationPage url={API_BASE_URL} />}
+            />
+            <Route
+              path="/settings"
+              element={<SettingsPage url={API_BASE_URL} />}
             />
           </Routes>
         </Router>
